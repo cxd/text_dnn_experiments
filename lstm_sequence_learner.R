@@ -45,7 +45,8 @@ make_lstm_sequence <- function(window, shapeKChars,
 ## train the model.
 train_on_sequences <- function(model, data, 
                                batchNum=1,
-                               batch_size=128, numEpocs=100, 
+                               batch_size=128, 
+                               numEpocs=100, 
                                withTensorBoard=TRUE,
                                logdir="logs/run", 
                                checkpointPath="checkpoints/model.h5") {

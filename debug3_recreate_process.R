@@ -6,6 +6,8 @@ source("prepare_squad_data.R")
 source("read_glove.R")
 source("lstm_sequence_learner.R")
 
+## this script recreates the work done in the example of text processing.
+
 path <- get_file(
   "nietzsche.txt",
   origin = "https://s3.amazonaws.com/text-datasets/nietzsche.txt"
@@ -31,14 +33,22 @@ iterations <- 1
 batchStart <- 1
 logdir<-"logs/debug3"
 tensorBoardPort=5000
+
+## the example suggests using 60 epochs
+numEpocs <- 60
+
 tensorboard(logdir, port=tensorBoardPort, launch_browser = TRUE)
+
 for(i in 1:iterations) {
-  model1 <- train_on_sequences(model1, list(data), batchNum=i, numEpocs=10,  
+  model1 <- train_on_sequences(model1, list(data), batchNum=i, 
+                               numEpocs=numEpocs,  
                                logdir="logs/debug3",
                                checkpointPath="checkpoints/model3.h5")
 }
 
 model1 %>% save_model_hdf5("test_model3.h5")
 
+temp <- strsplit(text," ")[[1]]
+temp2 <- paste(temp[1:100], collapse=" ")
 
-(prediction <- predict_sequence_of_length(model1, text[1:100], temperature=1))
+(prediction <- predict_sequence_of_length(model1, temp2, temperature=0.5))
