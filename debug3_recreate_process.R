@@ -35,3 +35,7 @@ tensorboard(logdir, port=tensorBoardPort, launch_browser = TRUE)
 for(i in 1:iterations) {
   model1 <- train_on_sequences(model1, list(data), batchNum=i, numEpocs=10,  logdir="logs/debug3")
 }
+
+
+
+(prediction <- predict_sequence_of_length(model1, text[1:100], temperature=1))

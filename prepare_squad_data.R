@@ -101,16 +101,20 @@ to_one_hot_chars <- function(text, window=60) {
   ## convert to a index of characters
   sequence1 <- to_char_index_sequence(char_indices, text)
   ## create lagged windowed sequence
-  windows <- window_char_sequence(sequence1, window)
+  windows <- window_char_sequence(sequence1, window+1)
+  
   
   rows <- nrow(windows)
  
-  x <- array(0L, dim=c(rows, ncol(windows), cols))
-  y <- array(0L, dim=c(rows, cols))
-  
   ## predicting each end character after each row of windows 
   ## we have the y characters being the last column of windows
   next_chars <- windows[,ncol(windows)]
+  ## Set the dimensions of the window back to original size.
+  windows <- windows[,1:window]
+  
+  
+  x <- array(0L, dim=c(rows, ncol(windows), cols))
+  y <- array(0L, dim=c(rows, cols))
   
   ## each row of windows is a sentence.
   ## we create a tensor for each row of windows
@@ -186,9 +190,11 @@ slidingMatrix <- function(sequence, p=1) {
   }
   if (n2 <= p) {
     n2 <- t1
+    m <- matrix(0, nrow=n2, ncol=p, byrow=TRUE)
+    m[1:length(nextSeq)] <- nextSeq
+  } else {
+    m <- matrix(nextSeq, nrow=n2, ncol=p, byrow=TRUE)
   }
-  m <- matrix(0, nrow=n2, ncol=p, byrow=TRUE)
-  m[1:length(nextSeq)] <- nextSeq
   as.matrix(m)
 }
 
