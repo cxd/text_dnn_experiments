@@ -1,0 +1,7 @@
+data/dev/preprocessed.csv
+.Rproj.user
+.Rproj.user/**
+.DS_Store
+.Rhistory
+data/glove/**
+logs/**
