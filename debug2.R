@@ -38,3 +38,4 @@ for(i in 1:iterations) {
   model <- train_on_sequences(model, all_data$contexts, batchNum=i, numEpocs=10)
   batchStart <- endBatch + 1
 }
+model %>% save_model_hdf5("test_model1.h5")
