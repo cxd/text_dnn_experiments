@@ -48,13 +48,14 @@ train_on_sequences <- function(model, data,
                                batch_size=128, numEpocs=100, 
                                withTensorBoard=TRUE,
                                logdir="logs/run", 
-                               tensorBoardPort=5000) {
+                               checkpointPath="checkpoints/model.h5") {
   ignore <- sapply(1:length(data), function(i) {
     x <- data[[i]]$data_x
     y <- data[[i]]$data_y
-    callbacks <- c()
+    callbacks <- list(callback_model_checkpoint(checkpointPath))
     if (withTensorBoard == TRUE) {
-      callbacks <- list(callback_tensorboard(paste0(logdir,"/",batchNum)))
+      callbacks <- list(callback_tensorboard(paste0(logdir,"/",batchNum)),
+                        callback_model_checkpoint(checkpointPath))
     }
     model %>% fit(
       x, y, 

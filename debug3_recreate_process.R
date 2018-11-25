@@ -27,15 +27,18 @@ nchars <- length(char_indices)
 model1 <- make_lstm_sequence(windowSize, nchars)
 
 
-iterations <- 10
+iterations <- 1
 batchStart <- 1
 logdir<-"logs/debug3"
 tensorBoardPort=5000
 tensorboard(logdir, port=tensorBoardPort, launch_browser = TRUE)
 for(i in 1:iterations) {
-  model1 <- train_on_sequences(model1, list(data), batchNum=i, numEpocs=10,  logdir="logs/debug3")
+  model1 <- train_on_sequences(model1, list(data), batchNum=i, numEpocs=10,  
+                               logdir="logs/debug3",
+                               checkpointPath="checkpoints/model3.h5")
 }
 
+model1 %>% save_model_hdf5("test_model3.h5")
 
 
 (prediction <- predict_sequence_of_length(model1, text[1:100], temperature=1))

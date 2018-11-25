@@ -100,18 +100,18 @@ to_one_hot_chars <- function(text, window=60) {
   
   ## convert to a index of characters
   sequence1 <- to_char_index_sequence(char_indices, text)
+  
   ## create lagged windowed sequence
-  windows <- window_char_sequence(sequence1, window+1)
+  windows <- window_char_sequence(sequence1, window)
   
   
-  rows <- nrow(windows)
+  rows <- nrow(windows) - 1
  
   ## predicting each end character after each row of windows 
   ## we have the y characters being the last column of windows
-  next_chars <- windows[,ncol(windows)]
+  next_chars <- windows[2:nrow(windows),ncol(windows)]
   ## Set the dimensions of the window back to original size.
-  windows <- windows[,1:window]
-  
+  windows <- windows[1:rows,1:window]
   
   x <- array(0L, dim=c(rows, ncol(windows), cols))
   y <- array(0L, dim=c(rows, cols))
@@ -170,6 +170,18 @@ slidingMatrix <- function(sequence, p=1) {
   sequence <- sequence[!is.nan(sequence)]
   # note n' = n - p + 1
   n1 <- length(sequence)
+  
+  if (n1 < p) {
+    # we create a vector of size p and pad it with 0s
+    s1 <- rep(0, p)
+    # we want the sequence at the end of the series not the start.
+    start <- p-length(sequence)
+    end <- p
+    s1[start:end] <- sequence
+    m <- matrix(s1, nrow=1, ncol=p, byrow=TRUE)
+    return(as.matrix(m))
+  }
+  
   # new number of rows
   n2 <- length(sequence) - p + 1
   if (n2 < p) {
