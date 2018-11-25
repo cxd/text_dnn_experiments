@@ -90,18 +90,21 @@ next_mostlikely_char <- function(chars, vector, temperature=0.5) {
 predict_sequence_of_length <- function(model, seed_text, window=60, sequence_length=100, temperature=0.5) {
   sliding_text <- seed_text
   chars <- set_of_chars()
-  full_text_response <- sapply(1:sequence_length, function(n) {
+  full_text_response <- c()
+  for(n in 1:sequence_length) {
     ## Encode the current sliding window input features.
     data <- to_one_hot_chars(sliding_text, window)
     x <- data$data_x
     likelihood_vector <- model %>% predict(x, verbose=0)
-    nextChar <- next_mostlikely_char(chars, likelihood_vector, temperature)
+    nextChar <- next_mostlikely_char(chars, likelihood_vector[1,], temperature)
     ## append to sliding window
     sliding_text <- paste0(sliding_text, nextChar)
     sliding_text <- substring(sliding_text, 2)
     
-    nextChar
-  })
+    print(sliding_text)
+    
+    full_text_response <- c(full_text_response, nextChar)
+  }
   # collating all text.
   final_response <- paste0(full_text_response, collapse="")
   list(input_text=seed_text,
@@ -113,23 +116,26 @@ predict_sequence_of_length <- function(model, seed_text, window=60, sequence_len
 predict_sequence_until <- function(model, seed_text, term_char=".", temperature=0.5) {
   sliding_text <- seed_text
   chars <- set_of_chars()
-  get_next <- function() {
-    ## Encode the current sliding window input features.
+  
+  flag <- FALSE
+  full_text_response <- c()
+  while(isFALSE(flag)) {
     data <- to_one_hot_chars(sliding_text, window)
     x <- data$data_x
     likelihood_vector <- model %>% predict(x, verbose=0)
-    nextChar <- next_mostlikely_char(chars, likelihood_vector, temperature)
+    nextChar <- next_mostlikely_char(chars, likelihood_vector[1,], temperature)
     ## append to sliding window
     sliding_text <- paste0(sliding_text, nextChar)
     sliding_text <- substring(sliding_text, 2)
     
-    nextChar
-  }
-  flag <- FALSE
-  full_text_response <- c()
-  while(!flag) {
-    nextChar <- get_next()
     flag <- nextChar == term_char
+    if (is.na(flag)) {
+      flag <- FALSE
+    }
+    print(paste(flag, nextChar, term_char))
+    
+    print(sliding_text)
+    
     full_text_response <- c(full_text_response, nextChar)
   }
   # collating all text.
