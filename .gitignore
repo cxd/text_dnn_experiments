@@ -5,3 +5,4 @@ data/dev/preprocessed.csv
 .Rhistory
 data/glove/**
 logs/**
+.RDataTmp

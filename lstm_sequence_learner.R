@@ -103,7 +103,7 @@ predict_sequence_of_length <- function(model, seed_text, window=60, sequence_len
     sliding_text <- paste0(sliding_text, nextChar)
     sliding_text <- substring(sliding_text, 2)
     
-    print(sliding_text)
+    #print(sliding_text)
     
     full_text_response <- c(full_text_response, nextChar)
   }
@@ -115,7 +115,7 @@ predict_sequence_of_length <- function(model, seed_text, window=60, sequence_len
 
 ## Predict the next sequence given a termination character.
 ## In this example a seed text is always required.
-predict_sequence_until <- function(model, seed_text, term_char=".", temperature=0.5) {
+predict_sequence_until <- function(model, seed_text, window=60, term_char=c(".","?","!"), temperature=0.5) {
   sliding_text <- seed_text
   chars <- set_of_chars()
   
@@ -130,13 +130,12 @@ predict_sequence_until <- function(model, seed_text, term_char=".", temperature=
     sliding_text <- paste0(sliding_text, nextChar)
     sliding_text <- substring(sliding_text, 2)
     
-    flag <- nextChar == term_char
-    if (is.na(flag)) {
+    flag <- which(nextChar %in% term_char)
+    if (length(flag) == 0) {
       flag <- FALSE
+    } else {
+      flag <- TRUE
     }
-    print(paste(flag, nextChar, term_char))
-    
-    print(sliding_text)
     
     full_text_response <- c(full_text_response, nextChar)
   }
