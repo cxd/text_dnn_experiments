@@ -101,3 +101,15 @@ evaluate_model(model1, model_data$test_vec)
 evaluate_model(model2, model_data$test_vec)
 
 model2 %>% save_model_hdf5("saved_models/test_babi2_debug4.h5")
+
+
+predict_answer(model2, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen, context, question)
+
+predict_answer(model2, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen,
+               "Mary travelled to the hallway. John went to the kitchen. Mary went to the kitchen.",
+               "Where is Mary?")
+
+predict_answer(model2, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen,
+               "Mary travelled to the hallway. John went to the kitchen. Mary went to the kitchen. John went to the hallway.",
+               "Where is John?")
+
