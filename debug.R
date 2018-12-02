@@ -9,6 +9,8 @@ cfg <- init(getwd())
 squadData <- "data/squad/dev/preprocessed.csv"
 squadDf <- read_saved_data(squadData)
 glove <- read_glove_model(model50)
+## in matrix form.
+M <- embeddings_to_matrix(glove)
 
 ## Playing with the glove vectors for semantic locations.
 v1 <- get_env_vector_for_word(glove, "man")
@@ -16,6 +18,13 @@ v2 <- get_env_vector_for_word(glove, "woman")
 
 v3 <- get_env_vector_for_word(glove, "king")
 v4 <- get_env_vector_for_word(glove, "queen")
+
+
+unk <- get_vector_or_generate(glove, M, "notinthelist")
+
+words <- list("this", "is" , "a", "test")
+word_vecs <- words_to_vectors(glove, M, words)
+
 
 v5 <- v3 + v2 - v1
 

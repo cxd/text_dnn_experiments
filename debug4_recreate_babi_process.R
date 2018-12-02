@@ -1,8 +1,11 @@
 
+
+
+
+source("lib/init.R")
 library(keras)
 library(stringr)
 
-source("lib/init.R")
 source("lib/read_babi_data.R")
 
 # Setup environment
@@ -76,4 +79,25 @@ predict_answer(model1, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$que
                "Mary travelled to the hallway. John went to the kitchen. Mary went to the kitchen. John went to the hallway.",
                "Where is John?")
 
+## Testing using embeddings.
+glove <- read_glove_model(model50)
+## in matrix form.
+M <- embeddings_to_matrix(glove)
+# get the embedding matrix.
+embedding_matrix <- words_to_position_matrix(glove, M, vocab_data$vocab_size, vocab)
+## create the model and supply the embedding matrix.
+model2 <- define_memnet_babi_with_embeddings(vocab_data$story_maxlen, vocab_data$query_maxlen, vocab_data$vocab_size, 50, embedding_matrix)
 
+
+history <- train_model(model2, 
+                       train1, 
+                       validation_vec=val1,  
+                       numEpochs=120,
+                       logdir="logs/babi", 
+                       checkpointPath="checkpoints/babimodel2.h5")
+
+evaluate_model(model1, model_data$test_vec)
+
+evaluate_model(model2, model_data$test_vec)
+
+model2 %>% save_model_hdf5("saved_models/test_babi2_debug4.h5")

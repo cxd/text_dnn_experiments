@@ -17,7 +17,7 @@ library(purrr)
 library(tibble)
 library(dplyr)
 source("lib/lstm_sequence_learner.R")
-
+source("lib/read_glove.R")
 
 
 challenges <- list(
@@ -234,6 +234,32 @@ vectorize_stories <- function(data, vocab, story_maxlen, query_maxlen){
   )
 }
 
+## using the glove embeddings
+## generate a data set where
+## inputs are 
+embedding_sequence_matrices <- function(data, glove, M) {
+  questions <- map(data$question, function(x) {
+    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs
+  })
+  
+  stories <- map(data$story, function(x) {
+    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs
+  })
+  
+  answers <- map(list(data$answer), function(x) {
+    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs
+  })
+  
+  list(
+    questions = questions, 
+    stories = stories,
+    answers = answers
+  )
+}
+
 vectorize_dataset <- function(train, test, vocab, story_maxlen, query_maxlen) {
   ## punctuation is included in the vocab as it represents terminal symbols in the sequence.
   train_vec <- vectorize_stories(train, vocab, story_maxlen, query_maxlen)
@@ -318,6 +344,88 @@ define_memnet_babi <- function(story_maxlen, query_maxlen, vocab_size) {
   model
 }
 
+## define the memory network model for the input representation 
+## used in the example. 
+### Supply an embedding matrix
+define_memnet_babi_with_embeddings <- function(story_maxlen, query_maxlen, vocab_size, embedding_dim, embedding_matrix) {
+  # Defining the model ------------------------------------------------------
+  
+  # Placeholders
+  sequence <- layer_input(shape = c(story_maxlen))
+  question <- layer_input(shape = c(query_maxlen))
+  
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embedding_dim) %>%
+    layer_dropout(rate = 0.3)
+  # output: (samples, story_maxlen, embedding_dim)
+  
+  ## Set the embedding for the input sequence.
+  get_layer(sequence_encoder_m, index=1) %>%
+    set_weights(list(embedding_matrix)) %>%
+    freeze_weights()
+  
+  # Embed the input into a sequence of vectors of size query_maxlen
+  sequence_encoder_c <- keras_model_sequential()
+  sequence_encoder_c %>%
+    layer_embedding(input_dim = vocab_size, output = query_maxlen) %>%
+    layer_dropout(rate = 0.3)
+  # output: (samples, story_maxlen, query_maxlen)
+  
+  # Embed the question into a sequence of vectors
+  question_encoder <- keras_model_sequential()
+  question_encoder %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embedding_dim, 
+                    input_length = query_maxlen) %>%
+    layer_dropout(rate = 0.3)
+  # output: (samples, query_maxlen, embedding_dim)
+  
+  get_layer(question_encoder, index=1) %>%
+    set_weights(list(embedding_matrix)) %>%
+    freeze_weights()
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  sequence_encoded_c <- sequence_encoder_c(sequence)
+  question_encoded <- question_encoder(question)
+  
+  # Compute a 'match' between the first input vector sequence
+  # and the question vector sequence
+  # shape: `(samples, story_maxlen, query_maxlen)`
+  match <- list(sequence_encoded_m, question_encoded) %>%
+    layer_dot(axes = c(2,2)) %>%
+    layer_activation("softmax")
+  
+  # Add the match matrix with the second input vector sequence
+  response <- list(match, sequence_encoded_c) %>%
+    layer_add() %>%
+    layer_permute(c(2,1))
+  
+  # Concatenate the match matrix with the question vector sequence
+  answer <- list(response, question_encoded) %>%
+    layer_concatenate() %>%
+    # The original paper uses a matrix multiplication for this reduction step.
+    # We choose to use an RNN instead.
+    layer_lstm(32) %>%
+    # One regularization layer -- more would probably be needed.
+    layer_dropout(rate = 0.3) %>%
+    layer_dense(vocab_size) %>%
+    # We output a probability distribution over the vocabulary
+    layer_activation("softmax")
+  
+  # Build the final model
+  model <- keras_model(inputs = list(sequence, question), answer)
+  model %>% compile(
+    optimizer = "rmsprop",
+    loss = "categorical_crossentropy",
+    metrics = "accuracy"
+  )
+  
+  model
+}
 
 train_model <- function(model, 
                         train_vec, 
