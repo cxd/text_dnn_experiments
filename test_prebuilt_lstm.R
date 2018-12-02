@@ -1,9 +1,14 @@
 
 library(keras)
 library(stringr)
-source("prepare_squad_data.R")
-source("read_glove.R")
-source("lstm_sequence_learner.R")
+
+source("lib/init.R")
+source("lib/prepare_squad_data.R")
+source("lib/read_glove.R")
+source("lib/lstm_sequence_learner.R")
+
+# Setup environment
+cfg <- init(getwd())
 
 prebuilt <- "test/bri-data-01/model3.h5"
 

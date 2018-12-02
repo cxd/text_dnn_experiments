@@ -5,21 +5,15 @@
 
 library(keras)
 library(stringr)
-source("prepare_squad_data.R")
-source("read_glove.R")
-source("lstm_sequence_learner.R")
 
-## Installing using conda.
-## install_keras(method="conda", conda="/usr/local/miniconda3/bin/conda", tensorflow="default")
-## After this cd to /usr/local/miniconda3/env
-## source activate r-tensorflow
-## then install into the environment conda install tensorflow-mkl
+source("lib/init.R")
+source("lib/prepare_squad_data.R")
+source("lib/read_glove.R")
+source("lib/lstm_sequence_learner.R")
 
-## Initialising Keras using conda library.
+# Setup environment
+cfg <- init(getwd())
 
-## Initialising Keras using conda library.
-#use_python("/usr/local/miniconda3/envs/r-tensorflow/python")
-#use_condaenv("r-tensorflow", conda="/usr/local/miniconda3/bin/conda")
 
 
 
@@ -83,7 +77,7 @@ for(i in 1:iterations) {
                                checkpointPath="checkpoints/model3.h5")
 }
 
-model1 %>% save_model_hdf5("test_model3.h5")
+model1 %>% save_model_hdf5("saved_models/test_model3.h5")
 
 # Select a text seed at random
 maxlen <- 60

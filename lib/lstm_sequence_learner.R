@@ -1,7 +1,7 @@
 require(keras)
 require(tensorflow)
 
-source("prepare_squad_data.R")
+source("lib/prepare_squad_data.R")
 
 
 ## LSTM Sequence learner following the example from deep learning with R.

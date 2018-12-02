@@ -1,6 +1,11 @@
-source("prepare_squad_data.R")
-source("read_glove.R")
-source("lstm_sequence_learner.R")
+
+source("lib/init.R")
+source("lib/prepare_squad_data.R")
+source("lib/read_glove.R")
+source("lib/lstm_sequence_learner.R")
+
+# Setup environment
+cfg <- init(getwd())
 
 squadData <- "data/squad/dev/preprocessed.csv"
 squadDf <- read_saved_data(squadData)

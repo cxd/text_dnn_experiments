@@ -141,6 +141,23 @@ story_maxlen <- map_int(all_data$story, ~length(.x)) %>% max()
 query_maxlen <- map_int(all_data$question, ~length(.x)) %>% max()
 
 # Vectorized versions of training and test sets
+
+## The structure of the training and test data is as follows.
+
+## "stories" is a matrix of word indices in the vocab. Nrows = num stories, ncols = max width of vocab.
+## values in the vector are an index into the vocab list looking up stories[i,j] will give the index of the word in the vocab.
+
+## "questions" are encoded in a fixed width fo max question size.
+## rows are num questions, cols are max question size.
+## values in each row vector are the index of the word in the vocab.
+
+## "answers" is nrow = num records ncol = num words in train data.
+## It is a one hot encoded vector for the words that appear in the answer. In this case the answer is a single
+## word and the one hot encoding acts as a discrete classification label per story, question pair.
+## The network learns a softmax function over the answers, but has no ordering ability.
+
+
+## punctuation is included in the vocab as it represents terminal symbols in the sequence.
 train_vec <- vectorize_stories(train, vocab, story_maxlen, query_maxlen)
 test_vec <- vectorize_stories(test, vocab, story_maxlen, query_maxlen)
 
