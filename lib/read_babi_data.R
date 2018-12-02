@@ -16,7 +16,7 @@ library(stringr)
 library(purrr)
 library(tibble)
 library(dplyr)
-
+source("lib/lstm_sequence_learner.R")
 
 
 
@@ -176,7 +176,26 @@ extract_vocab <- function(train, test) {
   
 }
 
+## A helper function used to take a new story and question and convert it into a list
+## structure suitable for prediction.
+process_plain_text <- function(story, question, answer) {
+  story_words <- tokenize_words(story)
+  story_questions <- tokenize_words(question)
+ temp <- list(story=list(story_words),
+             question=list(story_questions),
+             answer=c(answer))
+  as.tibble(temp)
+}
+
 # Vectorized versions of training and test sets
+##
+## The data is a list of train and test.
+## Each train and test inputs are in turn data frames with the names (id, question, story, answer)
+## "id" - The id is a integer (n observations of unique ids)
+## "question" - The question is a list of individual words from the vocabulary that define the actual question for the story.
+## "story" - The story is a list of words from the vocabulary that defines the context, it can have multiple lines, but these are all 
+## concatenated into one list.
+## "answer" - answer is a one word answer for each row of the data frame. N rows for n answers.
 ##
 ## The structure of the training and test data is as follows.
 ##
@@ -325,8 +344,38 @@ evaluate_model <- function(model, test_vec) {
   )
 }
 
+swap_out_of_vocab <- function(words, vocab, swap=".") {
+  words <- unlist(words)
+  in_vocab <- which(words %in% vocab)
+  
+  not_in_vocab <- words[-in_vocab]
+  if (length(not_in_vocab) > 0) {
+    words[-in_vocab] <- swap
+  }
+  list(words)
+}
+
 ## Predict an answer given the context and the question.
 ## Note both context and question must have words that occur in the known vocabulary.
-predict_answer <- function(model, vocab, context, question) {
-  ## TODO parse both context and question into the representation used by the network input.
+predict_answer <- function(model, vocab, story_maxlen, query_maxlen, context, question, plausible_ans=".") {
+  ## parse both context and question into the representation used by the network input.
+  pred_data <- process_plain_text(context, question, plausible_ans)
+  
+  ## We need to remove any words not in the vocab from the prediction data.
+  pred_data$story <- swap_out_of_vocab(pred_data$story, vocab)
+  pred_data$question <- swap_out_of_vocab(pred_data$question, vocab)
+  
+  pred_vec <- vectorize_stories(pred_data, vocab, story_maxlen, query_maxlen)
+  
+  pred_ans <- model %>% predict(x=list(pred_vec$stories, pred_vec$questions))
+  
+  pred <- softmax_index_list(pred_ans)
+  ans <- "UNKNOWN"
+  if (pred$index[1] > 1) {
+    idx <- pred$index - 1
+    ans <- vocab[idx]
+  }
+  list(
+    answer=ans,
+    confidence=pred$confidence)
 }

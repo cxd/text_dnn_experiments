@@ -80,6 +80,19 @@ softmax_index <- function(vector, temperature=0.5) {
   which.max(t(rmultinom(1, 1, preds)))
 }
 
+softmax_index_list <- function(vector, temperature=0.5) {
+  preds <- as.numeric(vector)
+  temp <- preds / sum(preds)
+  preds <- log(preds) / temperature
+  exp_preds <- exp(preds)
+  preds <- exp_preds / sum(exp_preds)
+  idx <- which.max(t(rmultinom(1, 1, preds)))
+  list(
+    index=idx,
+    confidence=temp[idx]
+  )
+}
+
 ## Given the vector of characters and the output from the dense layer.
 ## Return the index of the most heavily weighted character.
 next_mostlikely_char <- function(chars, vector, temperature=0.5) {

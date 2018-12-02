@@ -22,7 +22,10 @@ model_data <- vectorize_dataset(train, test, vocab_data$vocab, vocab_data$story_
 
 model1 <- define_memnet_babi(vocab_data$story_maxlen, vocab_data$query_maxlen, vocab_data$vocab_size)
 
+summary(model1)
+
 ## Need to partition training into train and validate.
+
 
 ## Since the questions do not represent classes the data set is just a 70 30 split.
 ## it is not requiring balancing.
@@ -59,5 +62,18 @@ plot(history)
 ## Save the model.
 model1 %>% save_model_hdf5("saved_models/test_babi_debug4.h5")
 
-## TODO: run testing on new story and new question.
+## run testing on new story and new question.
+context <- "John travelled to the office."
+question <- "Where is John?"
+
+predict_answer(model1, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen, context, question)
+
+predict_answer(model1, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen,
+               "Mary travelled to the hallway. John went to the kitchen. Mary went to the kitchen.",
+               "Where is Mary?")
+
+predict_answer(model1, vocab_data$vocab, vocab_data$story_maxlen, vocab_data$query_maxlen,
+               "Mary travelled to the hallway. John went to the kitchen. Mary went to the kitchen. John went to the hallway.",
+               "Where is John?")
+
 
