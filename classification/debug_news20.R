@@ -90,7 +90,7 @@ val1_y <- do.call("rbind", val1_y)
 val1_y <- as.matrix(val1_y)
 
 # each epoch tskers around
-numEpochs <- 10
+numEpochs <- 1000
 
 history1 <- train_model(model1, 
                         train1_x, 
@@ -101,7 +101,9 @@ history1 <- train_model(model1,
                         logdir="logs/news/2", 
                         checkpointPath="checkpoints/news_memnet_single.h5")
 
+png("news_memnet_embed.png", width="800", height="600")
 plot(history1)
+dev.off()
 
 ## Save the model.
 model1 %>% save_model_hdf5("saved_models/test_news_memnet_single.h5")
@@ -115,7 +117,9 @@ history2 <- train_model(model2,
                         logdir="logs/news2/1", 
                         checkpointPath="checkpoints/news_glove_single.h5")
 
+png("news_glove_embed.png", width="800", height="600")
 plot(history2, main="10 iterations model embeddings")
+dev.off()
 
 model2 %>% save_model_hdf5("saved_models/test_news_embed_single.h5")
 
