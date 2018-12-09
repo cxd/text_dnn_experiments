@@ -11,3 +11,10 @@ The paper can be found on arxiv: https://dblp.uni-trier.de/rec/bibtex/journals/c
 Note also for exploring Glove in R see also: https://rpubs.com/ww44ss/glove300d
 Additional examples of loading word vectors into a keras layer is shown in:
 https://github.com/rstudio/keras/blob/master/vignettes/examples/pretrained_word_embeddings.R
+
+A good discussion on Attention networks in Keras is here:
+
+https://github.com/keras-team/keras/issues/4962
+
+A good discussion on implementation of attention mechanism in R is here: https://blogs.rstudio.com/tensorflow/posts/2018-07-30-attention-layer/
+

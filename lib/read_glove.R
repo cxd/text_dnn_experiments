@@ -47,19 +47,17 @@ get_env_vector_for_word <- function(glove, word) {
 
 ## Generate a sampled vector from the supplied set of vectors.
 ## this is used to fill the embeddings for unknown words
-generate_sampled_vector <- function(M) {
-  C <- var(M)
-  mu1 <- colMeans(M)
-  s1 <- rmvn(1,mu1,C)
+generate_sampled_vector <- function(M, mu, C) {
+  s1 <- rmvn(1,mu,C)
   s1
 }
 
 ## get the vector for the word or else generate a new vector by random sampling the glove matrix. 
 ## random vectors for unknown words will be cached in glove.
-get_vector_or_generate <- function(glove, M, word) {
+get_vector_or_generate <- function(glove, M, word, mu, C) {
   word <- stringr::str_to_lower(word)
   if (is.null(glove[[word]])) {
-    rvec <- generate_sampled_vector(M)
+    rvec <- generate_sampled_vector(M, mu, C)
     glove[[word]] <- rvec
     rvec
   } else {
@@ -69,17 +67,22 @@ get_vector_or_generate <- function(glove, M, word) {
 
 
 ## given a list of words return a list of word vectors 
-words_to_vectors <- function(glove, M, words) {
-  lapply(words, function(word) {
-    get_vector_or_generate(glove, M, word)
+words_to_vectors <- function(glove, M, words, padding=c()) {
+  C <- var(M)
+  mu1 <- colMeans(M)
+  paddedWords <- unlist(c(padding,words))
+  lapply(paddedWords, function(word) {
+    get_vector_or_generate(glove, M, word, mu1, C)
   })
 }
 
 
 ## given a list of words return a list of word vectors 
-words_to_vectors_list <- function(glove, M, words) {
-  temp <- words_to_vectors(glove, M, words)
+## if pad = TRUE then the first entry is padded for the pad text.
+## This is used where vocabularies add additional words not identified
+words_to_vectors_list <- function(glove, M, words, padding=c()) {
   items <- list()
+  temp <- words_to_vectors(glove, M, words, padding)
   for(i in 1:length(temp)) {
     word <- words[[i]]
     items[[word]] <- temp[[i]]
@@ -93,12 +96,14 @@ words_to_vectors_list <- function(glove, M, words) {
 ## Unknown words generate a random vector.
 words_to_position_matrix <- function(glove, M, vocab_size, vocab) {
   cols <- ncol(M)
+  C <- var(M)
+  mu1 <- colMeans(M)
   rows <- vocab_size
   embedding_matrix <- array(0, c(rows, cols))
   labels <- rownames(M)
   for(word in vocab) {
     index <- which(vocab %in% word)
-    vec <- get_vector_or_generate(glove, M, word)
+    vec <- get_vector_or_generate(glove, M, word, mu1, C)
     # The embedding matrix is offset by 1.
     embedding_matrix[index,] <- vec
   }

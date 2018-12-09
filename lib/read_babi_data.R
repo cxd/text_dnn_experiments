@@ -18,6 +18,7 @@ library(tibble)
 library(dplyr)
 source("lib/lstm_sequence_learner.R")
 source("lib/read_glove.R")
+source("lib/word_text_processing.R")
 
 
 challenges <- list(
@@ -70,15 +71,6 @@ download_babi_data <- function(baseUrl="https://s3.amazonaws.com/text-datasets/b
   untar(path, exdir = str_replace(path, fixed(".tar.gz"), "/"))
   path <- str_replace(path, fixed(".tar.gz"), "/")
   path
-}
-
-## Tokenise text sequence into lists of words including punctuation. 
-tokenize_words <- function(x){
-  x <- x %>% 
-    str_replace_all('([[:punct:]]+)', ' \\1') %>% 
-    str_split(' ') %>%
-    unlist()
-  x[x != ""]
 }
 
 ## Parse stories, questions and answers.
@@ -236,20 +228,20 @@ vectorize_stories <- function(data, vocab, story_maxlen, query_maxlen){
 
 ## using the glove embeddings
 ## generate a data set where
-## inputs are 
+## inputs are padded with the additional vocabulary word ""
 embedding_sequence_matrices <- function(data, glove, M) {
   questions <- map(data$question, function(x) {
-    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs <- words_to_vectors(glove, M, words, padding=c(""))
     word_vecs
   })
   
   stories <- map(data$story, function(x) {
-    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs <- words_to_vectors(glove, M, words, padding=c(""))
     word_vecs
   })
   
   answers <- map(list(data$answer), function(x) {
-    word_vecs <- words_to_vectors(glove, M, words)
+    word_vecs <- words_to_vectors(glove, M, words, padding=c(""))
     word_vecs
   })
   

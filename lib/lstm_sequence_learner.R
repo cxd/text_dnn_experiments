@@ -41,6 +41,29 @@ make_lstm_sequence <- function(window, shapeKChars,
   model
 }
 
+
+make_cnn_sequence <- function(window, shapeKChars, numUnits=128,
+                              optimiser="adam",
+                              loss="categorical_crossentropy",
+                              dilation=1) {
+  model <- keras_model_sequential() %>%
+    layer_conv_1d(
+      filters=numUnits,
+      kernel_size=window,
+      dilation_rate = dilation,
+      input_shape=c(window, shapeKChars)
+    ) %>%
+    layer_global_max_pooling_1d() %>%
+    layer_dense(units=numUnits, shapeKChars, activation="relu") %>%
+    layer_dense(units=shapeKChars, activation="softmax")
+  
+  model %>% compile(
+    loss=loss,
+    optimizer=optimiser
+  )
+  model
+}
+
 ## Taking the input sequences of 1D convolutions in x_data, y_data
 ## train the model.
 train_on_sequences <- function(model, data, 
