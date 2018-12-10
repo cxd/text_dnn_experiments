@@ -42,11 +42,13 @@ indexedData <- vectorise_word_indices(newsDataset$data_set,
                                       newsDataset$vocab$maxlen)
 
 
+dropout = 0.6
+
 model1 <- define_memnet_single(newsDataset$vocab$maxlen, 
                                newsDataset$vocab$vocab_size, 
                                length(newsDataset$class_labels), 
                                embed_dim=50, 
-                               dropout=0.3)
+                               dropout=dropout)
 
 summary(model1)
 
@@ -64,7 +66,7 @@ model2 <- define_embed_single(newsDataset$vocab$maxlen,
                               length(newsDataset$class_labels), 
                               embedding_matrix, 
                               embed_dim=50, 
-                              dropout=0.3)
+                              dropout=dropout)
 
 
 ## break training into train and validation
