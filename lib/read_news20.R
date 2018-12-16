@@ -104,3 +104,13 @@ embeddings_for_word_indices <- function(glove, M, data_set, padding=c()) {
     word_embeddings=embeddings
   )
 }
+
+## Convert input text to a data set.
+convert_text_to_dataset <- function(input_text) {
+  newsData <- data.frame(text=input_text, stringsAsFactors = FALSE)
+  
+  outputData <- newsData %>% 
+    mutate(word_vector=map(text, ~tokenize_words(.x)))
+  
+  outputData
+}

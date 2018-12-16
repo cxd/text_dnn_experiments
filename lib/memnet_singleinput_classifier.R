@@ -1,5 +1,5 @@
+source("lib/lstm_sequence_learner.R")
 ### Define a memnet network used for single word indices input with softmax layer for classification.
-
 define_memnet_single <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3) {
   
   # Placeholders
@@ -136,5 +136,15 @@ evaluate_model <- function(model, test_vec, test_vec_target) {
     x=test_vec,
     y=test_vec_target,
     batch_size=32
+  )
+}
+
+predict_model <- function(model, input_word_indices, target_classes, temperature=0.5) {
+  weights <- model %>% predict(input_word_indices,verbose=0)
+  max_idx <- softmax_index(weights, temperature)
+  class <- target_classes[max_idx]
+  list(
+    class=class,
+    weight=weights[max_idx]
   )
 }
