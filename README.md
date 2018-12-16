@@ -12,6 +12,8 @@ Note also for exploring Glove in R see also: https://rpubs.com/ww44ss/glove300d
 Additional examples of loading word vectors into a keras layer is shown in:
 https://github.com/rstudio/keras/blob/master/vignettes/examples/pretrained_word_embeddings.R
 
+The glove vectors can be downloaded via the download.sh script.
+
 A good discussion on Attention networks in Keras is here:
 
 https://github.com/keras-team/keras/issues/4962

@@ -52,23 +52,6 @@ model1 <- define_memnet_single(newsDataset$vocab$maxlen,
 
 summary(model1)
 
-### Also an embedding model using glove data.
-## Testing using embeddings.
-glove <- read_glove_model(model50)
-## in matrix form.
-M <- embeddings_to_matrix(glove)
-# get the embedding matrix.
-embedding_matrix <- words_to_position_matrix(glove, M, newsDataset$vocab$vocab_size, newsDataset$vocab$vocab)
-
-## Create the embedding matrix model.
-model2 <- define_embed_single(newsDataset$vocab$maxlen, 
-                              newsDataset$vocab$vocab_size, 
-                              length(newsDataset$class_labels), 
-                              embedding_matrix, 
-                              embed_dim=50, 
-                              dropout=dropout)
-
-
 ## break training into train and validation
 set.seed(42L)
 
@@ -110,20 +93,6 @@ dev.off()
 ## Save the model.
 model1 %>% save_model_hdf5("saved_models/test_news_memnet_single.h5")
 
-history2 <- train_model(model2, 
-                        train1_x, 
-                        val1_x,  
-                        train1_y,
-                        val1_y,
-                        numEpochs=numEpochs,
-                        logdir="logs/news2/1", 
-                        checkpointPath="checkpoints/news_glove_single.h5")
-
-png("news_glove_embed.png", width="800", height="600")
-plot(history2, main="10 iterations model embeddings")
-dev.off()
-
-model2 %>% save_model_hdf5("saved_models/test_news_embed_single.h5")
 
 
 testNewsData <- getPath(type="test", dev=TRUE) %>% 
@@ -152,7 +121,6 @@ evaluate_model(model1, val1_x, val1_y)
 ## being biased it wont perform well in the test set either.
 evaluate_model(model1, test1_x, test1_y)
 
-evaluate_model(model2, test1_x, test1_y)
 
 ## what were the class distributions in the training and validation data.
 labels1 <- newsData$newsgroup[idx]
