@@ -79,7 +79,7 @@ for(i in 1:iterations) {
                                checkpointPath="checkpoints/model_cnnseq1.h5")
 }
 
-model1 %>% save_model_hdf5("saved_models/test_model_cnnseq1.h5")
+model1 %>% save_model_hdf5("saved_models/test_model_cnnseq1_gpu.h5")
 
 # Select a text seed at random
 maxlen <- 60
