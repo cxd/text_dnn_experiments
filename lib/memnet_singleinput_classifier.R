@@ -228,7 +228,7 @@ define_memnet_lstm_conv1d_single <- function(maxlen, vocab_size, class_label_siz
   targets <- sequence_encoded_m %>%
     layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
-    layer_max_pooling_1d(pool_size = embed_dim) %>% 
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
     layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu") %>%
     # RNN layer
     bidirectional(layer_lstm(units=embed_dim)) %>%

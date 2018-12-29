@@ -11,7 +11,9 @@ source("lib/embedding_feedforward_softmax.R")
 # Setup environment
 cfg <- init(getwd())
 
-newsData <- getPath(type="train", dev=TRUE) %>% 
+devSet<- FALSE
+
+newsData <- getPath(type="train", dev=devSet) %>% 
     read_news_file()
 
 ## Get the vocab and the word vector list.
@@ -48,7 +50,7 @@ dropout = 0.6
 model1 <- embedding_feedforward_softmax(newsDataset$vocab$maxlen, 
                                newsDataset$vocab$vocab_size, 
                                length(newsDataset$class_labels), 
-                               embed_dim=300, 
+                               embed_dim=64, 
                                dropout=dropout,
                                optimizerName="rmsprop")
 
@@ -97,7 +99,7 @@ model1 %>% save_model_hdf5("saved_models/test_news_feedforward.h5")
 
 
 
-testNewsData <- getPath(type="test", dev=TRUE) %>% 
+testNewsData <- getPath(type="test", dev=devSet) %>% 
   read_news_file()
 
 testNewsDataset <- create_data_set(testNewsData)

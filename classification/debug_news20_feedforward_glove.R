@@ -60,7 +60,8 @@ model2 <- glove_embedding_feedforward_softmax(newsDataset$vocab$maxlen,
                               length(newsDataset$class_labels), 
                               embedding_matrix, 
                               embed_dim=50, 
-                              dropout=dropout)
+                              dropout=dropout,
+                              optimizerName="rmsprop")
 
 summary(model2)
 
@@ -87,7 +88,7 @@ val1_y <- do.call("rbind", val1_y)
 val1_y <- as.matrix(val1_y)
 
 # each epoch tskers around
-numEpochs <- 1000
+numEpochs <- 100
 
 history2 <- train_model(model2, 
                         train1_x, 

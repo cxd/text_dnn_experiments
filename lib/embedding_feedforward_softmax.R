@@ -18,9 +18,11 @@ embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_size, 
   sequence_encoded_m <- sequence_encoder_m(sequence)
   
   targets <- sequence_encoded_m %>%
-    layer_dense(embed_dim) %>%
+    layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu",
+                  input_shape = list(NULL, embed_dim)) %>% 
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
     layer_flatten() %>%
     # convert back to flattened output
     layer_dense(class_label_size) %>%
@@ -45,8 +47,7 @@ glove_embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_
   # Embed the input sequence into a sequence of vectors
   sequence_encoder_m <- keras_model_sequential()
   sequence_encoder_m %>%
-    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
-    layer_dropout(rate = dropout)
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim)
   # output: (samples, maxlen, embedding_dim)
   
   ## Set the embedding for the input sequence.
@@ -56,12 +57,15 @@ glove_embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_
   
   # Encode input sequence and questions (which are indices)
   # to sequences of dense vectors
-  sequence_encoded_m <- sequence_encoder_m(sequence)
+  sequence_encoded_m <- sequence_encoder_m(sequence)  %>%
+    layer_dropout(rate = dropout)
   
   targets <- sequence_encoded_m %>%
-    layer_dense(embed_dim) %>%
+    layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu",
+                  input_shape = list(NULL, embed_dim)) %>% 
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
     layer_flatten() %>%
     # convert back to flattened output
     layer_dense(class_label_size) %>%
