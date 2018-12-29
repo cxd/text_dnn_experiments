@@ -135,22 +135,23 @@ labels2 <- newsData$newsgroup[-idx]
 
 temp <- newsDataset$data_set
 temp$text_size <- sapply(temp$word_vector, length)
-temp %>%  group_by(newsgroup) %>%
+temp <- temp %>%  group_by(newsgroup) %>%
   summarize(maxlen=max(text_size))
 
+names(temp) <- c("label", "text_size")
+
 labels1Count <- data.frame(labels=labels1) %>% count(labels)
-labels1Count
+names(labels1Count) <- c("label", "trainCount")
 
 labels2Count <- data.frame(labels=labels2) %>% count(labels)
-labels2Count
+names(labels2Count) <- c("label", "testCount")
 
-labelsAll <- as.data.frame(labels1Count)
+labelsAll <- inner_join(inner_join(labels1Count, labels2Count, by="label"), temp, by="label")
+
 labelsAll$testCount <- labels2Count$n
 labelsAll$maxTextLength <- rep(newsDataset$vocab$maxlen, nrow(labelsAll))
 
-names(labelsAll) <- c("label", "trainCount", "testCount","maxTextLength")
-write.csv(labelsAll, "saved_models/news20_fullset_labels.csv", row.names=FALSE)
-
+ 
 # the low accuracy could potentially be resolved using more data. 
 # or investigate the model architecture.
 
