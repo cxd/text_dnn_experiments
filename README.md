@@ -20,3 +20,8 @@ https://github.com/keras-team/keras/issues/4962
 
 A good discussion on implementation of attention mechanism in R is here: https://blogs.rstudio.com/tensorflow/posts/2018-07-30-attention-layer/
 
+
+## Note on using cudnn lstm weights in cpu lstm weights.
+It should be possible to use gpu trained lstm weights in a cpu lstm model.
+Comments on keras github have details around this.
+https://github.com/keras-team/keras/issues/9463
