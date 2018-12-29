@@ -97,6 +97,8 @@ dev.off()
 ## Save the model.
 model1 %>% save_model_hdf5("saved_models/test_news_feedforward.h5")
 
+## Save the vocal and the maximum length of the data set as well as the class labels.
+write.csv(newsDataset$vocab$vocab, "saved_models/news20_full_vocab.csv", row.names=FALSE)
 
 
 testNewsData <- getPath(type="test", dev=devSet) %>% 
@@ -131,11 +133,23 @@ labels1 <- newsData$newsgroup[idx]
 
 labels2 <- newsData$newsgroup[-idx]
 
+temp <- newsDataset$data_set
+temp$text_size <- sapply(temp$word_vector, length)
+temp %>%  group_by(newsgroup) %>%
+  summarize(maxlen=max(text_size))
+
 labels1Count <- data.frame(labels=labels1) %>% count(labels)
 labels1Count
 
 labels2Count <- data.frame(labels=labels2) %>% count(labels)
 labels2Count
+
+labelsAll <- as.data.frame(labels1Count)
+labelsAll$testCount <- labels2Count$n
+labelsAll$maxTextLength <- rep(newsDataset$vocab$maxlen, nrow(labelsAll))
+
+names(labelsAll) <- c("label", "trainCount", "testCount","maxTextLength")
+write.csv(labelsAll, "saved_models/news20_fullset_labels.csv", row.names=FALSE)
 
 # the low accuracy could potentially be resolved using more data. 
 # or investigate the model architecture.
