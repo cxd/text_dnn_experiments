@@ -73,6 +73,16 @@ model1 <- embedding_feedforward_stacked_cnn_softmax(newsDataset$vocab$maxlen,
                                dropout=dropout,
                                optimizerName="nadam")
 
+if (file.exists("saved_models/test_news_feedforward_cnn_weights.h5")) {
+  model1 <- load_model_weights_hdf5(model1, "saved_models/test_news_feedforward_cnn_weights.h5")
+}
+
+load_checkpoint <- FALSE
+
+if (load_checkpoint && file.exists("checkpoints/news_feedforward_cnn.h5")) {
+  model1 <- load_model_hdf5("checkpoints/news_feedforward_cnn.h5")
+}
+
 summary(model1)
 
 ## break training into train and validation
@@ -115,6 +125,8 @@ dev.off()
 
 ## Save the model.
 model1 %>% save_model_hdf5("saved_models/test_news_feedforward_cnn.h5")
+
+model1 %>% save_model_weights_hdf5("saved_models/test_news_feedforward_cnn_weights.h5")
 
 ## Save the vocal and the maximum length of the data set as well as the class labels.
 write.csv(newsDataset$vocab$vocab, "saved_models/news20_full_vocab.csv", row.names=FALSE)
