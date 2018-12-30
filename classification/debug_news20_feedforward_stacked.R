@@ -71,7 +71,7 @@ model1 <- embedding_feedforward_stacked_cnn_softmax(newsDataset$vocab$maxlen,
                                length(newsDataset$class_labels), 
                                embed_dim=64, 
                                dropout=dropout,
-                               optimizerName="rmsprop")
+                               optimizerName="nadam")
 
 summary(model1)
 

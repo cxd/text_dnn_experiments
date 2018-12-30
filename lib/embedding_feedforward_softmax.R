@@ -54,13 +54,13 @@ embedding_feedforward_stacked_cnn_softmax <- function(maxlen, vocab_size, class_
   sequence_encoded_m <- sequence_encoder_m(sequence)
   
   targets <- sequence_encoded_m %>%
-    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
+    layer_conv_1d(filters = embed_dim, kernel_size = kernelSize, activation = "relu",
                   input_shape = list(NULL, embed_dim*2)) %>% 
     # second convolutional layer.
-    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
+    layer_conv_1d(filters = embed_dim/2, kernel_size = kernelSize, activation = "relu",
                   input_shape = list(NULL, embed_dim*2)) %>% 
     # third convolutional layer.
-    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
+    layer_conv_1d(filters = embed_dim/2, kernel_size = kernelSize, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
     layer_max_pooling_1d(pool_size = embed_dim) %>%
     # Regularization layer.
