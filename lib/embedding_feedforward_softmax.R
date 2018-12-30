@@ -2,7 +2,7 @@ source("lib/memnet_singleinput_classifier.R")
 ## A simple feedforward architecture leveraging embeddings
 ## that feed into the dense layers above to perform softmax classification.
 
-embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3, optimizerName="rmsprop") {
+embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3, kernelSize=5, optimizerName="rmsprop") {
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
   # Encoders
@@ -18,7 +18,49 @@ embedding_feedforward_softmax <- function(maxlen, vocab_size, class_label_size, 
   sequence_encoded_m <- sequence_encoder_m(sequence)
   
   targets <- sequence_encoded_m %>%
-    layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu",
+    layer_conv_1d(filters = 32, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim)) %>% 
+    # Regularization layer.
+    layer_dropout(rate=dropout) %>%
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
+    layer_flatten() %>%
+    # convert back to flattened output
+    layer_dense(class_label_size) %>%
+    ## Softmax activation
+    layer_activation("softmax")
+  
+  model <- keras_model(inputs=sequence, targets)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
+## Stacked CNN with dense feedforward activation for softmax.
+embedding_feedforward_stacked_cnn_softmax <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3, kernelSize=3, optimizerName="rmsprop") {
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+    layer_dropout(rate = dropout)
+  # output: (samples, maxlen, embedding_dim)
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  targets <- sequence_encoded_m %>%
+    layer_conv_1d(filters = embed_dim, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim)) %>% 
+    # Regularization layer.
+    layer_dropout(rate=dropout) %>%
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
+    # second convolutional layer.
+     layer_conv_1d(filters = 32, kernel_size = kernelSize, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
