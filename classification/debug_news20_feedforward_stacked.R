@@ -33,17 +33,36 @@ newsData <- getPath(type="train", dev=devSet) %>%
 ## text - the original text
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
-newsDataset <- create_data_set(newsData)
+newsDataset <- list() 
+if (file.exists("data/news20/newsDataset_full.rds")) {
+  newsDataset <- readRDS("data/news20/newsDataset_full.rds")
+} else {
+  
+  newsDataset <- create_data_set(newsData)
+  saveRDS(newsDataset, "data/news20/newsDataset_full.rds")
+  
+}
+
 
 # Generate indexed data.
 ## The list returns
 ## word_indices - 2d matrix of N sentences x maxlen of index encoded words.
 ## eg on the dev data set the word indices are 1334 x 7643
 ## class_encoded - the set of one-hot encoded classes derived from the create_data_set operation.
-indexedData <- vectorise_word_indices(newsDataset$data_set, 
-                                      newsDataset$vocab$vocab, 
-                                      newsDataset$vocab$maxlen)
-
+indexedData <- list()
+if (file.exists("data/news20/indexed_data_full.rds")) {
+  
+  indexedData <- readRDS("data/news20/indexedData_full.rds")
+  
+} else {
+  
+  indexedData <- vectorise_word_indices(newsDataset$data_set, 
+                                        newsDataset$vocab$vocab, 
+                                        newsDataset$vocab$maxlen)
+  
+  saveRDS(indexedData, "data/news20/indexedData_full.rds")
+  
+}
 
 dropout = 0.6
 
@@ -79,7 +98,7 @@ val1_y <- do.call("rbind", val1_y)
 val1_y <- as.matrix(val1_y)
 
 # each epoch tskers around
-numEpochs <- 100
+numEpochs <- 500
 
 history1 <- train_model(model1, 
                         train1_x, 
@@ -108,13 +127,26 @@ write.csv(history1, "saved_models/news20_full_cnn_history.csv", row.names=FALSE)
 testNewsData <- getPath(type="test", dev=devSet) %>% 
   read_news_file()
 
-testNewsDataset <- create_data_set(testNewsData)
+testNewsDataset <- list()
+if (file.exists("data/news20/test_news_dataset_full.rds")) {
+  testNewsDataset <- readRDS("data/news20/test_news_dataset_full.rds")
+} else {
+  testNewsDataset <- create_data_set(testNewsData)
+  saveRDS(testNewsDataset, "data/news20/test_news_dataset_full.rds")
+}
 
-# use the same vocabulary as the training vocab
-testIndexedData <- vectorise_word_indices(testNewsDataset$data_set, 
-                                      newsDataset$vocab$vocab, 
-                                      newsDataset$vocab$maxlen,
-                                      unknownWord="unknown")
+testIndexedData <- list()
+if (file.exists("data/news20/test_indexed_data_full.rds")) {
+  testIndexedData <- readRDS("data/news20/test_indexed_data_full.rds")
+} else {
+  # use the same vocabulary as the training vocab
+  testIndexedData <- vectorise_word_indices(testNewsDataset$data_set, 
+                                            newsDataset$vocab$vocab, 
+                                            newsDataset$vocab$maxlen,
+                                            unknownWord="unknown")
+  saveRDS(testIndexedData, "data/news20/test_indexed_data_full.rds")
+  
+}
 
 
 test1_x <- testIndexedData$word_indices

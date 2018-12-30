@@ -45,7 +45,7 @@ embedding_feedforward_stacked_cnn_softmax <- function(maxlen, vocab_size, class_
   # Embed the input sequence into a sequence of vectors
   sequence_encoder_m <- keras_model_sequential()
   sequence_encoder_m %>%
-    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim*2) %>%
     layer_dropout(rate = dropout)
   # output: (samples, maxlen, embedding_dim)
   
@@ -54,17 +54,17 @@ embedding_feedforward_stacked_cnn_softmax <- function(maxlen, vocab_size, class_
   sequence_encoded_m <- sequence_encoder_m(sequence)
   
   targets <- sequence_encoded_m %>%
-    layer_conv_1d(filters = embed_dim, kernel_size = kernelSize, activation = "relu",
-                  input_shape = list(NULL, embed_dim)) %>% 
-    # Regularization layer.
-    layer_dropout(rate=dropout) %>%
-    layer_max_pooling_1d(pool_size = embed_dim) %>%
+    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim*2)) %>% 
     # second convolutional layer.
-     layer_conv_1d(filters = 32, kernel_size = kernelSize, activation = "relu",
+    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim*2)) %>% 
+    # third convolutional layer.
+    layer_conv_1d(filters = kernelSize, kernel_size = kernelSize, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
+    layer_max_pooling_1d(pool_size = embed_dim) %>%
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
-    layer_max_pooling_1d(pool_size = embed_dim) %>%
     layer_flatten() %>%
     # convert back to flattened output
     layer_dense(class_label_size) %>%
