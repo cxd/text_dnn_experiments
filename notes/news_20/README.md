@@ -38,7 +38,7 @@ A corresponding commentary on the same dataset is also found here: https://acard
 Both pages give a set of benchmarks for different types of classifiers, with a benchmark of 84.86% accuracy on the test set given by a linear classifier on the standford page, and a benchmark of 84.7% accuracy given by an SVM classifier on the page by A.Cardocacho. 
 The interesting feature of the newsgroup dataset is the reasonably large vocabulary at about 70000 words. The balanced nature of the class assignments also makes the dataset well behaved as a baseline for training and testing. The presence of other benchmarks and its popularity makes it a good tool for baselining classifiers against other work.
 
-The following set of timings give an indication as to the processing speed requirements for different model architectures, these are derived from the news 20 full training set of some 7905 examples with a word based vocabulary feeding into a embedding layer as the first layer.
+The following set of timings give an indication as to the processing speed requirements for different model architectures, these are derived from the news 20 full training set of some 7905 training examples in a single epoch, with a word based vocabulary feeding into a embedding layer as the first layer.
 
 - CPU - 1 Layer LSTM and Feedforward network - Intel(R) Xeon(R) CPU X5650 @ 2.67GHz 6 Cores - 4300s per epoch - 550ms per step - libopenblas 2.20 ubuntu
 - CPU - 1 Layer CNN and Feedforward network - Intel i7 2.9Ghz 2 Cores - 50s per epoch - ? per step - Blas Accelerate macOs Framework
