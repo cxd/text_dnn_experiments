@@ -91,7 +91,7 @@ plot(history1)
 dev.off()
 
 ## Save the model.
-model1 %>% save_model_hdf5("saved_models/test_news_memnet_single.h5")
+model1 %>% save_model_weights_hdf5("saved_models/test_news_memnet_single_weights.h5")
 
 
 

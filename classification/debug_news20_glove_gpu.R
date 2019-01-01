@@ -101,7 +101,7 @@ png("news_glove_embed.png", width="800", height="600")
 plot(history2, main="10 iterations model embeddings")
 dev.off()
 
-model2 %>% save_model_hdf5("saved_models/test_news_embed_single_gpu.h5")
+model2 %>% save_model_weights_hdf5("saved_models/test_news_embed_single_weights_gpu.h5")
 
 
 testNewsData <- getPath(type="test", dev=TRUE) %>% 

@@ -69,8 +69,60 @@ embedding_feedforward_stacked_cnn_softmax <- function(maxlen, vocab_size, class_
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
     layer_max_pooling_1d(pool_size = embed_dim) %>%
+    #layer_dense(class_label_size) %>%
+    #layer_activation_selu() %>%
+    # convert back to flattened output
     layer_flatten() %>%
     # convert back to flattened output
+    layer_dense(class_label_size) %>%
+    ## Softmax activation
+    layer_activation("softmax")
+  
+  model <- keras_model(inputs=sequence, targets)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
+
+
+## Stacked CNN with dense feedforward activation for softmax.
+embedding_feedforward_stacked_cnn_softmax_nodense <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3, kernelSize=3, optimizerName="rmsprop") {
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim*2) %>%
+    layer_dropout(rate = dropout)
+  # output: (samples, maxlen, embedding_dim)
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  targets <- sequence_encoded_m %>%
+    layer_conv_1d(filters = embed_dim, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim*2)) %>% 
+    layer_max_pooling_1d(pool_size = embed_dim, strides=embed_dim) %>%
+    # Regularization layer.
+    layer_dropout(rate=dropout) %>%
+    # second convolutional layer.
+    layer_conv_1d(filters = embed_dim/2, kernel_size = kernelSize, activation = "relu",
+                  input_shape = list(NULL, embed_dim*2)) %>% 
+    layer_max_pooling_1d(pool_size = embed_dim, strides=2) %>%
+    # Regularization layer.
+    layer_dropout(rate=dropout) %>%
+     # third convolutional layer.
+    layer_conv_1d(filters = class_label_size, kernel_size = 1, activation = "relu",
+                  input_shape = list(NULL, embed_dim)) %>% 
+    layer_max_pooling_1d(pool_size = class_label_size, strides=2) %>%
+    # Regularization layer.
+    layer_dropout(rate=dropout) %>%
+    layer_flatten() %>%
     layer_dense(class_label_size) %>%
     ## Softmax activation
     layer_activation("softmax")

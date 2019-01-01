@@ -95,7 +95,7 @@ plot(history1)
 dev.off()
 
 ## Save the model.
-model1 %>% save_model_hdf5("saved_models/test_news_feedforward.h5")
+model1 %>% save_model_weights_hdf5("saved_models/test_news_feedforward_weights.h5")
 
 ## Save the vocal and the maximum length of the data set as well as the class labels.
 write.csv(newsDataset$vocab$vocab, "saved_models/news20_full_vocab.csv", row.names=FALSE)

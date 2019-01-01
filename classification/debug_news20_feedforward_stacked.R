@@ -50,7 +50,7 @@ if (file.exists("data/news20/newsDataset_full.rds")) {
 ## eg on the dev data set the word indices are 1334 x 7643
 ## class_encoded - the set of one-hot encoded classes derived from the create_data_set operation.
 indexedData <- list()
-if (file.exists("data/news20/indexed_data_full.rds")) {
+if (file.exists("data/news20/indexedData_full.rds")) {
   
   indexedData <- readRDS("data/news20/indexedData_full.rds")
   
@@ -73,14 +73,14 @@ model1 <- embedding_feedforward_stacked_cnn_softmax(newsDataset$vocab$maxlen,
                                dropout=dropout,
                                optimizerName="nadam")
 
-if (file.exists("saved_models/test_news_feedforward_cnn_weights.h5")) {
-  model1 <- load_model_weights_hdf5(model1, "saved_models/test_news_feedforward_cnn_weights.h5")
+if (file.exists("saved_models/test_news_feedforward_cnn_stacked_weights.h5")) {
+  model1 <- load_model_weights_hdf5(model1, "saved_models/test_news_feedforward_cnn_stacked_weights.h5")
 }
 
 load_checkpoint <- FALSE
 
-if (load_checkpoint && file.exists("checkpoints/news_feedforward_cnn.h5")) {
-  model1 <- load_model_hdf5("checkpoints/news_feedforward_cnn.h5")
+if (load_checkpoint && file.exists("checkpoints/news_feedforward_cnn_stacked.h5")) {
+  model1 <- load_model_hdf5("checkpoints/news_feedforward_cnn_stacked.h5")
 }
 
 summary(model1)
@@ -117,14 +117,13 @@ history1 <- train_model(model1,
                         val1_y,
                         numEpochs=numEpochs,
                         logdir="logs/news/2", 
-                        checkpointPath="checkpoints/news_feedforward_cnn.h5")
+                        checkpointPath="checkpoints/news_feedforward_cnn_stacked.h5")
 
-png("news_feedforward_cnn.png", width="800", height="600")
+png("news_feedforward_cnn_stacked.png", width="800", height="600")
 plot(history1)
 dev.off()
 
 ## Save the model.
-model1 %>% save_model_hdf5("saved_models/test_news_feedforward_cnn.h5")
 
 model1 %>% save_model_weights_hdf5("saved_models/test_news_feedforward_cnn_weights.h5")
 

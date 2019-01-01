@@ -52,11 +52,22 @@ test1_y <- testIndexedData$class_encoded
 test1_y <- do.call("rbind", test1_y)
 
 dropout=0.6
-model1 <- define_memnet_single(vocab$maxlen, 
-                               vocab$vocab_size, 
-                               length(newsDataset$class_labels), 
-                               embed_dim=50, 
-                               dropout=dropout)
+model1 <- NULL
+if (is.null(cfg$hasGpu) || cfg$hasGpu== FALSE) {
+  model1 <- define_memnet_single(vocab$maxlen, 
+                                 vocab$vocab_size, 
+                                 length(newsDataset$class_labels), 
+                                 embed_dim=50, 
+                                 dropout=dropout)
+  
+} else {
+  model1 <- define_memnet_single_gpu(vocab$maxlen, 
+                                 vocab$vocab_size, 
+                                 length(newsDataset$class_labels), 
+                                 embed_dim=50, 
+                                 dropout=dropout)
+  
+}
 ## Load the stored weights, these are smaller in file size than the full model file.
 load_model_weights_hdf5(model1, "saved_models/test_news_memnet_single_weights.h5")
 summary(model1)
