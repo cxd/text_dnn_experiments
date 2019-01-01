@@ -57,21 +57,22 @@ convert_text_to_dataset <- function(input_text) {
 read_text_and_classes <- function(path, class_column="", text_column="", partition_column=NA, sep=",") {
   data <- fread(path, sep=sep)
   data$row <- as.character(1:nrow(data))
-  dataset <- list()
+  setDF(data)
   dataSet <- if (!is.na(partition_column)) {
     data.frame(docId=as.character(data$row),
-                          text=as.character(data[,..text_column]),
-                          class_label=as.character(data[,..class_column]),
-                          partition = as.character(data[,..partition_column]),
-                          stringsAsFactors = FALSE)
+               text=as.character(data[,text_column]),
+               class_label=as.character(data[,class_column]),
+               partition = as.character(data[,partition_column]),
+               stringsAsFactors = FALSE)
   } else {
     data.frame(docId=as.character(data$row),
-                          text=as.character(data[,..text_column]),
-                          class_label=as.character(data[,..class_column]),
-                          stringsAsFactors = FALSE)
+               text=as.character(data[,text_column]),
+               class_label=as.character(data[,class_column]),
+               stringsAsFactors = FALSE)
   }
   dataSet
 }
+
 
 
 
