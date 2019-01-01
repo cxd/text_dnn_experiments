@@ -71,12 +71,12 @@ model1 <- embedding_feedforward_stacked_cnn_softmax_nodense(newsDataset$vocab$ma
                                length(newsDataset$class_labels), 
                                embed_dim=64, 
                                dropout=dropout,
-                               optimizerName="nadam")
+                               optimizerName="rmsprop")
 
 summary(model1)
 
-if (file.exists("saved_models/test_news_feedforward_cnn_stackednidense_weights.h5")) {
-  model1 <- load_model_weights_hdf5(model1, "saved_models/test_news_feedforward_cnn_stackednodense_weights.h5")
+if (file.exists("saved_models/news_feedforward_cnn_stacked_nodense_weights.h5")) {
+  model1 <- load_model_weights_hdf5(model1, "saved_models/news_feedforward_cnn_stacked_nodense_weights.h5")
 }
 
 load_checkpoint <- FALSE
