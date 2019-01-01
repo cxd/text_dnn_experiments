@@ -33,16 +33,36 @@ newsData <- getPath(type="train", dev=devSet) %>%
 ## text - the original text
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
-newsDataset <- create_data_set(newsData)
+newsDataset <- list() 
+if (file.exists("data/news20/newsDataset_full.rds")) {
+  newsDataset <- readRDS("data/news20/newsDataset_full.rds")
+} else {
+  
+  newsDataset <- create_data_set(newsData)
+  saveRDS(newsDataset, "data/news20/newsDataset_full.rds")
+  
+}
+
 
 # Generate indexed data.
 ## The list returns
 ## word_indices - 2d matrix of N sentences x maxlen of index encoded words.
 ## eg on the dev data set the word indices are 1334 x 7643
 ## class_encoded - the set of one-hot encoded classes derived from the create_data_set operation.
-indexedData <- vectorise_word_indices(newsDataset$data_set, 
-                                      newsDataset$vocab$vocab, 
-                                      newsDataset$vocab$maxlen)
+indexedData <- list()
+if (file.exists("data/news20/indexedData_full.rds")) {
+  
+  indexedData <- readRDS("data/news20/indexedData_full.rds")
+  
+} else {
+  
+  indexedData <- vectorise_word_indices(newsDataset$data_set, 
+                                        newsDataset$vocab$vocab, 
+                                        newsDataset$vocab$maxlen)
+  
+  saveRDS(indexedData, "data/news20/indexedData_full.rds")
+  
+}
 
 
 dropout = 0.6
@@ -53,6 +73,10 @@ model1 <- embedding_feedforward_softmax(newsDataset$vocab$maxlen,
                                embed_dim=64, 
                                dropout=dropout,
                                optimizerName="rmsprop")
+
+if (file.exists("saved_models/test_news_feedforward_cnn_weights.h5")) {
+  load_model_weights_hdf5(model1, "saved_models/test_news_feedforward_cnn_weights.h5")
+}
 
 summary(model1)
 
@@ -95,7 +119,7 @@ plot(history1)
 dev.off()
 
 ## Save the model.
-model1 %>% save_model_weights_hdf5("saved_models/test_news_feedforward_weights.h5")
+model1 %>% save_model_weights_hdf5("saved_models/test_news_feedforward_cnn_weights.h5")
 
 ## Save the vocal and the maximum length of the data set as well as the class labels.
 write.csv(newsDataset$vocab$vocab, "saved_models/news20_full_vocab.csv", row.names=FALSE)
