@@ -93,7 +93,7 @@ read_text_and_classes <- function(path, class_column="", text_column="", partiti
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
 create_data_set <- function(dataset) {
-  classLabels <- dataset$text %>% 
+  classLabels <- dataset$class_label %>% 
     unique() %>% 
     sort()
   
