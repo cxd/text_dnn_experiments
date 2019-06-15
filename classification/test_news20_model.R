@@ -110,3 +110,40 @@ test_data <- vectorise_word_indices(test_sample,
 
 predict_model (model1, test_data$word_indices, testNewsDataset$class_labels)
 
+
+## use the model for visualising dimensions.
+vis_model <- keras_model(input=model1$input,
+                         output=get_layer(model1, name="dense_3")$output)
+
+
+summary(vis_model)
+
+## we can try and visualise the output
+
+input_text1 <- "NVidia GPU install seems to be stuck as it progresses no further than 'Installing drivers'"
+
+test_sample1 <- convert_text_to_dataset(input_text1)
+
+test_data1 <- vectorise_word_indices(test_sample1, 
+                                    vocab$vocab, 
+                                    vocab$maxlen,
+                                    unknownWord="unknown")
+
+
+input_text2 <- "Philosophical questions are usually foundational and abstract in nature. Philosophy is done primarily through reflection and does not tend to rely on experiment, although the methods used to study it may be analogous to those used in the study of the natural sciences."
+
+test_sample2 <- convert_text_to_dataset(input_text2)
+
+test_data2 <- vectorise_word_indices(test_sample2, 
+                                    vocab$vocab, 
+                                    vocab$maxlen,
+                                    unknownWord="unknown")
+
+v1 <- vis_model %>% predict(test_data1$word_indices)
+
+v2 <- vis_model %>% predict(test_data2$word_indices)
+
+plot(t(v1), col="red", type="n")
+points(t(v2), col="blue", type="n")
+text(t(v1), col="red", labels=test_sample1$word_vector[[1]])
+text(t(v2), col="blue", labels=test_sample2$word_vector[[1]])
