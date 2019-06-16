@@ -1,10 +1,10 @@
-## Deep Learning Methods for Language Processing and Classification
+## Exploring Deep Learning Methods for Language Processing and Classification
 
 This project explores the methodology for a variety of deep learning methods for language processing.
 
 It using a subset of the Stanford Question Answering data set (https://rajpurkar.github.io/SQuAD-explorer/).
 
-As well as a subset of the news 20 data set for classification.
+As well as a subset of the news 20 data set for classification [news 20 notes](classification/news_20_references.md).
 
 The pretrained vector space model is provided by GLOVE. https://nlp.stanford.edu/projects/glove/
 
