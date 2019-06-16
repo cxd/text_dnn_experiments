@@ -23,6 +23,8 @@ https://github.com/keras-team/keras/issues/4962
 
 A good discussion on implementation of attention mechanism in R is here: https://blogs.rstudio.com/tensorflow/posts/2018-07-30-attention-layer/
 
+The Babi question answering example is described in the vignette on the keras website here:
+https://keras.rstudio.com/articles/examples/babi_memnn.html
 
 ## Note on using cudnn lstm weights in cpu lstm weights.
 It should be possible to use gpu trained lstm weights in a cpu lstm model.
