@@ -8,9 +8,8 @@ As well as a subset of the news 20 data set for classification.
 
 The pretrained vector space model is provided by GLOVE. https://nlp.stanford.edu/projects/glove/
 
-The project seeks to recreate the BiDAF architecture "BI-DIRECTIONAL ATTENTION FLOW FOR MACHINE COMPREHENSION" and is based on this project here: https://github.com/allenai/bi-att-flow
+The project seeks to recreate a number of different models in the area of text processing, and at this point is in the survey stage of reviewing a number of different papers.
 
-The paper can be found on arxiv: https://dblp.uni-trier.de/rec/bibtex/journals/corr/SeoKFH16 
 
 Note also for exploring Glove in R see also: https://rpubs.com/ww44ss/glove300d
 Additional examples of loading word vectors into a keras layer is shown in:
