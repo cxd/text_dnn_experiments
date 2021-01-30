@@ -79,9 +79,17 @@ val1_y <- do.call("rbind", val1_y)
 val1_y <- as.matrix(val1_y)
 
 # each epoch tskers around
-numEpochs <- 1000
+numEpochs <- 100
 
-logdir <- "logs/news/2"
+
+require(lubridate)
+path <- now()
+
+logdir <- file.path("logs", "news", path)
+if (!dir.exists(logdir)) {
+  dir.create(logdir, recursive=TRUE)
+}
+
 tensorboard(logdir)
 
 history1 <- train_model(model1, 

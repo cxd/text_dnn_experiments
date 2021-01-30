@@ -322,7 +322,9 @@ train_model <- function(model,
                         numEpochs=120,
                         logdir="logs/single", 
                         checkpointPath="checkpoints/memnet_single.h5") {
-  callbacks <- list(callback_model_checkpoint(checkpointPath), callback_tensorboard(logdir))
+  callbacks <- list(callback_model_checkpoint(checkpointPath), 
+                    callback_tensorboard(logdir),
+                    callback_early_stopping())
   model %>% fit(
     x = train_vec,
     y = train_target_vec,
