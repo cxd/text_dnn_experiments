@@ -10,19 +10,39 @@ source("lib/word_text_processing.R")
 ## word_indices - 2d matrix of N sentences x maxlen of index encoded words.
 ## class_encoded - the set of one-hot encoded classes derived from the create_data_set operation.
 vectorise_word_indices <- function(data_set, vocabWords, maxlen, unknownWord="<UNK>") {
+  
+  
+  unknown_idx <- which(unknownWord %in% vocabWords)[[1]]
+  
   words_vecs <- as.list(data_set$word_vector)
   
-  indexForWord <- function(word) {
-    idx <- which(word == vocabWords)
-    if (length(idx) == 0) {
-      idx <- which(unknownWord == vocabWords)  
+  indexForWordVec <- function(word_vec) {
+    idx <- which(word_vec %in% vocabWords)
+    unknowns <- word_vec[-idx]
+    
+    copy_vec <-word_vec
+    copy_vec[idx] <- word_vec[idx]
+    copy_vec[-idx] <- unknownWord
+    # copy_vec includes tokens for the unknownWord at the indices having words not in the vocab
+    vidx <- which(vocabWords %in% copy_vec)
+    vocab_subset <- vocabWords[vidx]
+    
+    # the word_vec will be shorter than the vocabWords hence we should be able to tabulate the lookup index on the subset of vocabulary words
+    inner_index <- function(word) {
+      i <- match(word, vocab_subset)
+      vi <- vidx[[i]]
+      vi
     }
-    idx
+    
+    # all word_vec items have a matching index in the vocab, so we return the indices of the vocab.
+    match_idx <- map(copy_vec, function(x) {
+        map_int(x, ~inner_index(.x))
+    })
+    match_idx
   }
   
-  word_indices <- map(words_vecs, function(x){
-    map_int(x, ~indexForWord(.x))
-  })
+  word_indices <- map(words_vecs, ~indexForWordVec(.x))
+  
   list(
     word_indices= pad_sequences(word_indices, maxlen = maxlen),
     class_encoded=data_set$class_encoded

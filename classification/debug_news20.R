@@ -6,6 +6,8 @@ library(purrr)
 source("lib/read_news20.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_glove.R")
+source("lib/read_classification_text.R")
+
 
 # Setup environment
 cfg <- init(getwd())
@@ -30,7 +32,7 @@ newsData <- getPath(type="train", dev=TRUE) %>%
 ## text - the original text
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
-newsDataset <- create_data_set(newsData)
+newsDataset <- news_create_data_set(newsData)
 
 # Generate indexed data.
 ## The list returns

@@ -7,7 +7,7 @@ library(purrr)
 source("lib/read_news20.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_glove.R")
-
+source("lib/read_classification_text.R")
 # Setup environment
 cfg <- init(getwd())
 
@@ -27,7 +27,7 @@ testNewsDataset <- list()
 if (file.exists("data/news20/test_news_dataset_full.rds")) {
   testNewsDataset <- readRDS("data/news20/test_news_dataset_full.rds")
 } else {
-  testNewsDataset <- create_data_set(testNewsData)
+  testNewsDataset <- news_create_data_set(testNewsData)
   saveRDS(testNewsDataset, "data/news20/test_news_dataset_full.rds")
 }
 

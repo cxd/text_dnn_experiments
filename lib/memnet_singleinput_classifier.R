@@ -256,7 +256,14 @@ define_memnet_lstm_conv1d_single <- function(maxlen, vocab_size, class_label_siz
 ## On the base test data set. 933 rows x 7643 cols takes roughly 20s per epoch. On GPU it takes about 2s per epoch.
 ## using a convolution in front of an LSTM may be useful for achieving an operable network
 ## that may not require graphics acceleration.
-define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label_size, embed_dim=64, dropout=0.3, optimizerName="rmsprop") {
+define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label_size, 
+                                                 embed_dim=64, 
+                                                 dropout=0.3, 
+                                                 optimizerName="rmsprop",
+                                                 kernel_size=3,
+                                                 num_filters=32,
+                                                 kernel_activation="relu",
+                                                 gpu_flag=FALSE) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -274,13 +281,16 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   
   # We attempt to reduce the dimensionality using a Convolutional network
   
+  lstm_fn <- if (gpu_flag) layer_cudnn_lstm
+    else layer_lstm
+  
   targets <- sequence_encoded_m %>%
-    layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu",
+    layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
     layer_max_pooling_1d(pool_size = embed_dim) %>% 
-    layer_conv_1d(filters = 32, kernel_size = 5, activation = "relu") %>%
+    layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu") %>%
     # RNN layer
-    bidirectional(layer_cudnn_lstm(units=embed_dim)) %>%
+    bidirectional(lstm_fn(units=embed_dim)) %>%
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
     # convert back to flattened output

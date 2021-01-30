@@ -7,7 +7,7 @@ source("lib/read_news20.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_glove.R")
 source("lib/embedding_feedforward_softmax.R")
-
+source("lib/read_classification_text.R")
 # Setup environment
 cfg <- init(getwd())
 
@@ -38,7 +38,7 @@ if (file.exists("data/news20/newsDataset_full.rds")) {
   newsDataset <- readRDS("data/news20/newsDataset_full.rds")
 } else {
   
-  newsDataset <- create_data_set(newsData)
+  newsDataset <- news_create_data_set(newsData)
   saveRDS(newsDataset, "data/news20/newsDataset_full.rds")
   
 }

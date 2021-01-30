@@ -41,7 +41,7 @@ read_news_file <- function(path) {
 ## text - the original text
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
-create_data_set <- function(newsData) {
+news_create_data_set <- function(newsData) {
   classLabels <- newsData$newsgroup %>% 
     unique() %>% 
     sort()
@@ -66,30 +66,7 @@ create_data_set <- function(newsData) {
   )
 }
 
-## Given the resulting data set.
-## Vectorise the word indices for their position in the vocab.
-## The list returns
-## word_indices - 2d matrix of N sentences x maxlen of index encoded words.
-## class_encoded - the set of one-hot encoded classes derived from the create_data_set operation.
-vectorise_word_indices <- function(data_set, vocabWords, maxlen, unknownWord="<UNK>") {
-  words_vecs <- as.list(data_set$word_vector)
-  
-  indexForWord <- function(word) {
-    idx <- which(word == vocabWords)
-    if (length(idx) == 0) {
-      idx <- which(unknownWord == vocabWords)  
-    }
-    idx
-  }
-  
-  word_indices <- map(words_vecs, function(x){
-    map_int(x, ~indexForWord(.x))
-  })
-  list(
-    word_indices= pad_sequences(word_indices, maxlen = maxlen),
-    class_encoded=data_set$class_encoded
-  )
-}
+
 
 
 ## Using the glove data convert the word_vectors

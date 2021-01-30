@@ -6,7 +6,7 @@ library(purrr)
 source("lib/read_news20.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_glove.R")
-
+source("lib/read_classification_text.R")
 # Setup environment
 cfg <- init(getwd())
 
