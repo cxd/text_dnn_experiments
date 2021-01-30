@@ -49,7 +49,10 @@ model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen,
                                newsDataset$vocab$vocab_size, 
                                length(newsDataset$class_labels), 
                                embed_dim=50, 
-                               dropout=dropout)
+                               dropout=dropout,
+                               num_filters = 3,
+                               kernel_size = 2,
+                               gpu_flag=cfg$hasGpu)
 
 summary(model1)
 
@@ -78,13 +81,16 @@ val1_y <- as.matrix(val1_y)
 # each epoch tskers around
 numEpochs <- 1000
 
+logdir <- "logs/news/2"
+tensorboard(logdir)
+
 history1 <- train_model(model1, 
                         train1_x, 
                         val1_x,  
                         train1_y,
                         val1_y,
                         numEpochs=numEpochs,
-                        logdir="logs/news/2", 
+                        logdir=logdir, 
                         checkpointPath="checkpoints/news_memnet_lstm_conv1d_gpu.h5")
 
 png("news_memnet_embed_lstm_gpu.png", width="800", height="600")

@@ -19,7 +19,12 @@ define_memnet_single <- function(maxlen, vocab_size, class_label_size, embed_dim
   
   targets <- sequence_encoded_m %>%
     # RNN layer
-    bidirectional(layer_lstm(units=embed_dim)) %>%
+    bidirectional(layer_lstm(units=embed_dim,
+                             activation="tanh",
+                             recurrent_activation="sigmoid",
+                             recurrent_dropout=0,
+                             unroll=FALSE,
+                             use_bias=TRUE)) %>%
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
     # convert back to flattened output
@@ -281,8 +286,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   
   # We attempt to reduce the dimensionality using a Convolutional network
   
-  lstm_fn <- if (gpu_flag) layer_cudnn_lstm
-    else layer_lstm
+  lstm_fn <- layer_lstm
   
   targets <- sequence_encoded_m %>%
     layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
@@ -318,7 +322,7 @@ train_model <- function(model,
                         numEpochs=120,
                         logdir="logs/single", 
                         checkpointPath="checkpoints/memnet_single.h5") {
-  callbacks <- list(callback_model_checkpoint(checkpointPath))
+  callbacks <- list(callback_model_checkpoint(checkpointPath), callback_tensorboard(logdir))
   model %>% fit(
     x = train_vec,
     y = train_target_vec,
