@@ -267,6 +267,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  optimizerName="rmsprop",
                                                  kernel_size=3,
                                                  num_filters=32,
+                                                 num_filters_second=12,
                                                  kernel_activation="relu",
                                                  gpu_flag=FALSE) {
   
@@ -292,7 +293,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
     layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
     layer_max_pooling_1d(pool_size = embed_dim) %>% 
-    layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu") %>%
+    layer_conv_1d(filters = num_filters_second, kernel_size = kernel_size, activation = "relu") %>%
     # RNN layer
     bidirectional(lstm_fn(units=embed_dim)) %>%
     # Regularization layer.
@@ -321,10 +322,13 @@ train_model <- function(model,
                         valid_target_vec,
                         numEpochs=120,
                         logdir="logs/single", 
-                        checkpointPath="checkpoints/memnet_single.h5") {
-  callbacks <- list(callback_model_checkpoint(checkpointPath), 
+                        checkpointPath="checkpoints/memnet_single.h5",
+                        stop_mode="min",
+                        stop_patience=5) {
+  callbacks <- list(callback_model_checkpoint(checkpointPath, verbose=1, save_best_only=TRUE), 
                     callback_tensorboard(logdir),
-                    callback_early_stopping())
+                    callback_early_stopping(mode=stop_mode, patience=stop_patience, restore_best_weights=TRUE, verbose=1))
+  
   model %>% fit(
     x = train_vec,
     y = train_target_vec,

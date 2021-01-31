@@ -50,9 +50,19 @@ model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen,
                                length(newsDataset$class_labels), 
                                embed_dim=50, 
                                dropout=dropout,
-                               num_filters = 3,
+                               num_filters = 64,
+                               num_filters_second=32,
                                kernel_size = 2,
                                gpu_flag=cfg$hasGpu)
+
+
+load_checkpoints <- TRUE
+
+checkpoint_file <- "checkpoints/news_memnet_lstm_conv1d_gpu.h5"
+if (load_checkpoints & file.exists(checkpoint_file)) {
+  load_model_weights_hdf5(model1, checkpoint_file)
+}
+
 
 summary(model1)
 
@@ -79,7 +89,12 @@ val1_y <- do.call("rbind", val1_y)
 val1_y <- as.matrix(val1_y)
 
 # each epoch tskers around
-numEpochs <- 100
+
+# 1 epoch is about 300s
+# 10 epochs is about 50 minutes.
+# 100 epochs is about 8 hours.
+# 
+numEpochs <- 10
 
 
 require(lubridate)
@@ -99,11 +114,11 @@ history1 <- train_model(model1,
                         val1_y,
                         numEpochs=numEpochs,
                         logdir=logdir, 
-                        checkpointPath="checkpoints/news_memnet_lstm_conv1d_gpu.h5")
+                        checkpointPath=checkpoint_file)
 
-png("news_memnet_embed_lstm_gpu.png", width="800", height="600")
-plot(history1)
-dev.off()
+#png("news_memnet_embed_lstm_gpu.png", width="800", height="600")
+#plot(history1)
+#dev.off()
 
 ## Save the model.
 model1 %>% save_model_weights_hdf5("saved_models/test_news_memnet_lstm_single_weights.h5")
@@ -113,7 +128,7 @@ model1 %>% save_model_weights_hdf5("saved_models/test_news_memnet_lstm_single_we
 testNewsData <- getPath(type="test", dev=TRUE) %>% 
   read_news_file()
 
-testNewsDataset <- create_data_set(testNewsData)
+testNewsDataset <- news_create_data_set(testNewsData)
 
 # use the same vocabulary as the training vocab
 testIndexedData <- vectorise_word_indices(testNewsDataset$data_set, 
