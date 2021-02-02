@@ -48,11 +48,12 @@ dropout = 0.1
 model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen, 
                                newsDataset$vocab$vocab_size, 
                                length(newsDataset$class_labels), 
-                               embed_dim=50, 
+                               embed_dim=128, 
                                dropout=dropout,
-                               num_filters = 64,
-                               num_filters_second=32,
-                               kernel_size = 2,
+                               num_filters = 64, # same size as the embedding vocab.
+                               num_filters_second=64,
+                               lstm_units=64,
+                               kernel_size = 3,
                                gpu_flag=cfg$hasGpu)
 
 
@@ -94,7 +95,7 @@ val1_y <- as.matrix(val1_y)
 # 10 epochs is about 50 minutes.
 # 100 epochs is about 8 hours.
 # 
-numEpochs <- 10
+numEpochs <- 50
 
 
 require(lubridate)
@@ -120,12 +121,14 @@ history1 <- train_model(model1,
 #plot(history1)
 #dev.off()
 
+
+load_model_weights_hdf5(model1, checkpoint_file)
 ## Save the model.
 model1 %>% save_model_weights_hdf5("saved_models/test_news_memnet_lstm_single_weights.h5")
 
 
 
-testNewsData <- getPath(type="test", dev=TRUE) %>% 
+testNewsData <- getPath(type="test", dev=FALSE) %>% 
   read_news_file()
 
 testNewsDataset <- news_create_data_set(testNewsData)

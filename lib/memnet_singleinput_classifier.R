@@ -268,8 +268,11 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  kernel_size=3,
                                                  num_filters=32,
                                                  num_filters_second=12,
+                                                 lstm_units=12,
                                                  kernel_activation="relu",
-                                                 gpu_flag=FALSE) {
+                                                 gpu_flag=FALSE,
+                                                 embedding_matrix=NULL,
+                                                 freeze_weights=FALSE) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -281,9 +284,22 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
     layer_dropout(rate = dropout) 
   # output: (samples, maxlen, embedding_dim)
   
+  
   # Encode input sequence and questions (which are indices)
   # to sequences of dense vectors
   sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+ 
   
   # We attempt to reduce the dimensionality using a Convolutional network
   
@@ -295,7 +311,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
     layer_max_pooling_1d(pool_size = embed_dim) %>% 
     layer_conv_1d(filters = num_filters_second, kernel_size = kernel_size, activation = "relu") %>%
     # RNN layer
-    bidirectional(lstm_fn(units=embed_dim)) %>%
+    bidirectional(lstm_fn(units=lstm_units)) %>%
     # Regularization layer.
     layer_dropout(rate=dropout) %>%
     # convert back to flattened output
