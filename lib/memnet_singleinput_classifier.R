@@ -266,13 +266,19 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  dropout=0.3, 
                                                  optimizerName="rmsprop",
                                                  kernel_size=3,
+                                                 pooling_size=2,
                                                  num_filters=32,
                                                  num_filters_second=12,
                                                  lstm_units=12,
                                                  kernel_activation="relu",
                                                  gpu_flag=FALSE,
                                                  embedding_matrix=NULL,
-                                                 freeze_weights=FALSE) {
+                                                 freeze_weights=FALSE,
+                                                 bidirectional=FALSE,
+                                                 lstm_activation="tanh",
+                                                 recurrent_activation="sigmoid",
+                                                 recurrent_dropout=0,
+                                                 lstm_bias=TRUE) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -303,23 +309,33 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   
   # We attempt to reduce the dimensionality using a Convolutional network
   
-  lstm_fn <- layer_lstm
-  
-  targets <- sequence_encoded_m %>%
+  cnn_network_layers <- sequence_encoded_m %>%
     layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
                   input_shape = list(NULL, embed_dim)) %>% 
-    layer_max_pooling_1d(pool_size = embed_dim) %>% 
+    layer_max_pooling_1d(pool_size = pooling_size) %>% 
     layer_conv_1d(filters = num_filters_second, kernel_size = kernel_size, activation = "relu") %>%
-    # RNN layer
-    bidirectional(lstm_fn(units=lstm_units)) %>%
-    # Regularization layer.
-    layer_dropout(rate=dropout) %>%
-    # convert back to flattened output
+    layer_max_pooling_1d(pool_size = pooling_size)
+  
+  lstm_network_layers <- if (bidirectional) {
+    cnn_network_layers %>% bidirectional(layer_lstm(units=lstm_units, 
+                                                    activation=lstm_activation,
+                                                    recurrent_activation=recurrent_activation,
+                                                    recurrent_dropout=recurrent_dropout,
+                                                    use_bias=lstm_bias))
+  } else {
+    cnn_network_layers %>% layer_lstm(units=lstm_units,
+                                      activation=lstm_activation,
+                                      recurrent_activation=recurrent_activation,
+                                      recurrent_dropout=recurrent_dropout,
+                                      use_bias=lstm_bias)
+  }
+  # convert back to flattened output
+  prediction_layer <- lstm_network_layers %>% 
     layer_dense(class_label_size) %>%
     ## Softmax activation
     layer_activation("softmax")
   
-  model <- keras_model(inputs=sequence, targets)
+  model <- keras_model(inputs=sequence, prediction_layer)
   model %>% compile(
     optimizer=optimizerName,
     loss="categorical_crossentropy",

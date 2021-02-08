@@ -49,7 +49,7 @@ indexedData <- vectorise_word_indices(newsDataset$data_set,
 dropout = 0.1
 kernel_size=3
 
-embedding <- c(50,100,300)
+embedding <- c(50,100)
 filters <- c(32,64,128,256)
 lstm_units <- c(32,64,128)
 
@@ -57,7 +57,7 @@ num_samples <- 9
 
 numEpochs <- 10
 
-freeze_weights <- FALSE
+freeze_weights <- TRUE
 
 ## break training into train and validation
 set.seed(42L)
@@ -114,7 +114,8 @@ for (i in 1:length(embedding)) {
                                                    kernel_size = kernel_size,
                                                    gpu_flag=cfg$hasGpu, 
                                                    embedding_matrix=embedding_matrix,
-                                                   freeze_weights=freeze_weights)
+                                                   freeze_weights=freeze_weights,
+                                                   bidirectional=TRUE)
     
     
     summary(model1)
@@ -209,6 +210,7 @@ for (i in 1:length(embedding)) {
     } else {
       accum_results <- rbind(accum_results, temp)
     }
+    write.csv(accum_results, paste(base_model_name, "csv", sep="."), row.names=FALSE)
     
   }
   
