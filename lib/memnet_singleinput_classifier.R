@@ -267,8 +267,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  optimizerName="rmsprop",
                                                  kernel_size=3,
                                                  pooling_size=2,
-                                                 num_filters=32,
-                                                 num_filters_second=12,
+                                                 filter_list=c(32,12),
                                                  lstm_units=12,
                                                  kernel_activation="relu",
                                                  gpu_flag=FALSE,
@@ -308,13 +307,23 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
  
   
   # We attempt to reduce the dimensionality using a Convolutional network
+  last_layer <- sequence_encoded_m
   
-  cnn_network_layers <- sequence_encoded_m %>%
-    layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
-                  input_shape = list(NULL, embed_dim)) %>% 
-    layer_max_pooling_1d(pool_size = pooling_size) %>% 
-    layer_conv_1d(filters = num_filters_second, kernel_size = kernel_size, activation = "relu") %>%
-    layer_max_pooling_1d(pool_size = pooling_size)
+  for (i in 1:length(filter_list)) {
+    num_filters <- filter_list[[i]]
+    last_layer <- if (i == 1) {
+      last_layer %>% 
+        layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
+                      input_shape = list(NULL, embed_dim)) %>% 
+        layer_max_pooling_1d(pool_size = pooling_size)
+    } else {
+      last_layer %>% layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu") %>%
+        layer_max_pooling_1d(pool_size = pooling_size)
+    }
+    
+  }
+  
+  cnn_network_layers <- last_layer
   
   lstm_network_layers <- if (bidirectional) {
     cnn_network_layers %>% bidirectional(layer_lstm(units=lstm_units, 
