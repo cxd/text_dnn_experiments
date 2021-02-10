@@ -47,16 +47,17 @@ indexedData <- vectorise_word_indices(newsDataset$data_set,
 
 
 dropout = 0.1
-kernel_size=3
+# kernel sizes initial kernel has a width of 5.
+kernel_size=c(5,3,3,3,3)
 
 # 50,64
 embedding <- c(128)
-filters <- c(32,64,128,256)
+filters <- c(32,64,128,256,512)
 lstm_units <- c(32,64,128)
 
-num_samples <- 9
+num_samples <- 10
 
-numEpochs <- 10
+numEpochs <- 30
 
 depth <- c(3,4,5)
 
@@ -86,7 +87,8 @@ for (i in 1:length(embedding)) {
     for (j in 1:num_samples) {
       
       edim <- embedding[[i]]
-      filter_list <- sample(filters,num_cnn, replace=TRUE)
+      # sort the filterlist in descending order in order to create a pyramid structure.
+      filter_list <- sample(filters,num_cnn, replace=TRUE) %>% sort() %>% rev()
       
       l <- sample(lstm_units, 1)
       

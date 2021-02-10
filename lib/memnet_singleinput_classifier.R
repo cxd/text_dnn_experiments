@@ -265,7 +265,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  embed_dim=64, 
                                                  dropout=0.3, 
                                                  optimizerName="rmsprop",
-                                                 kernel_size=3,
+                                                 kernel_size=c(3),
                                                  pooling_size=2,
                                                  filter_list=c(32,12),
                                                  lstm_units=12,
@@ -305,25 +305,14 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
       set_weights(list(embedding_matrix))
   }
  
-  
-  # We attempt to reduce the dimensionality using a Convolutional network
-  last_layer <- sequence_encoded_m
-  
-  for (i in 1:length(filter_list)) {
-    num_filters <- filter_list[[i]]
-    last_layer <- if (i == 1) {
-      last_layer %>% 
-        layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu",
-                      input_shape = list(NULL, embed_dim)) %>% 
-        layer_max_pooling_1d(pool_size = pooling_size)
-    } else {
-      last_layer %>% layer_conv_1d(filters = num_filters, kernel_size = kernel_size, activation = "relu") %>%
-        layer_max_pooling_1d(pool_size = pooling_size)
-    }
-    
+  if (length(kernel_size) < length(filter_list)) {
+    kernel_size <- rep(kernel_size[[1]], length(filter_list))
   }
-  
-  cnn_network_layers <- last_layer
+  # We attempt to reduce the dimensionality using a Convolutional network
+  cnn_network_layers <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list,
+                                         kernel_size_list=kernel_size, 
+                                         pooling_size=pooling_size, 
+                                         kernel_activation=kernel_activation)
   
   lstm_network_layers <- if (bidirectional) {
     cnn_network_layers %>% bidirectional(layer_lstm(units=lstm_units, 
@@ -353,6 +342,136 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
 }
 
 
+build_cnn_layers <- function(last_layer, input_size, filter_list, 
+                             kernel_size_list=3, 
+                             pooling_size=2, 
+                             kernel_activation="relu") {
+  
+  for (i in 1:length(filter_list)) {
+    num_filters <- filter_list[[i]]
+    kernel_size <- kernel_size_list[[i]]
+    last_layer <- if (i == 1) {
+      last_layer %>% 
+        layer_conv_1d(filters = num_filters, kernel_size = kernel_size,
+                      input_shape = list(NULL, input_size)) %>% 
+        layer_max_pooling_1d(pool_size = pooling_size) %>%
+        layer_batch_normalization() %>%
+        layer_activation(activation=kernel_activation)
+    } else {
+      last_layer %>% layer_conv_1d(filters = num_filters, kernel_size = kernel_size) %>%
+        layer_max_pooling_1d(pool_size = pooling_size) %>%
+        layer_batch_normalization() %>%
+        layer_activation(activation=kernel_activation)
+    }
+    
+  }
+  
+  last_layer
+  
+} 
+
+
+### Define a memnet network used for single word indices input with softmax layer for classification.
+### Use a gru layer instead of the LSTM layer.
+### The GRU may be slightly faster to train than the LSTM.
+## The 1d Convolutional layers reduce the size of the network somewhat and increases the speed of training.
+## On the base test data set. 933 rows x 7643 cols takes roughly 20s per epoch. On GPU it takes about 2s per epoch.
+## using a convolution in front of an LSTM may be useful for achieving an operable network
+## that may not require graphics acceleration.
+define_dual_conv1d_lstm <- function(maxlen, vocab_size, class_label_size, 
+                                                 embed_dim=64, 
+                                                 dropout=0.3, 
+                                                 optimizerName="rmsprop",
+                                                 kernel_size1=3,
+                                                 kernel_size2=5,
+                                                 pooling_size=2,
+                                                 filter_list1=c(32,12),
+                                                 filter_list2=c(32,12),
+                                                 lstm_units=12,
+                                                 kernel_activation="relu",
+                                                 gpu_flag=FALSE,
+                                                 embedding_matrix=NULL,
+                                                 freeze_weights=FALSE,
+                                                 bidirectional=FALSE,
+                                                 lstm_activation="tanh",
+                                                 recurrent_activation="sigmoid",
+                                                 recurrent_dropout=0,
+                                                 lstm_bias=TRUE) {
+  
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+    layer_dropout(rate = dropout) 
+  # output: (samples, maxlen, embedding_dim)
+  
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+  
+  
+  # We attempt to reduce the dimensionality using a Convolutional network
+  if (length(kernel_size1) < length(filter_list1)) {
+    kernel_size1 <- rep(kernel_size1[[1]], length(filter_list1))
+  }
+  if (length(kernel_size2) < length(filter_list2)) {
+    kernel_size2 <- rep(kernel_size2[[1]], length(filter_list2))
+  }
+  cnn_network_layers1 <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list1,
+                                         kernel_size_list=kernel_size1, 
+                                         pooling_size=pooling_size, 
+                                         kernel_activation=kernel_activation)
+  
+  cnn_network_layers2 <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list2,
+                                          kernel_size_list=kernel_size2, 
+                                         pooling_size=pooling_size, 
+                                         kernel_activation=kernel_activation)
+  
+  ## we need to concatenate the outputs of the 2 layers togethor.
+  cnn_network_layers <- layer_concatenate(c(cnn_network_layers1, cnn_network_layers2), axis=-1)
+                                         
+  
+  lstm_network_layers <- if (bidirectional) {
+    cnn_network_layers %>% bidirectional(layer_lstm(units=lstm_units, 
+                                                    activation=lstm_activation,
+                                                    recurrent_activation=recurrent_activation,
+                                                    recurrent_dropout=recurrent_dropout,
+                                                    use_bias=lstm_bias))
+  } else {
+    cnn_network_layers %>% layer_lstm(units=lstm_units,
+                                      activation=lstm_activation,
+                                      recurrent_activation=recurrent_activation,
+                                      recurrent_dropout=recurrent_dropout,
+                                      use_bias=lstm_bias)
+  }
+  # convert back to flattened output
+  prediction_layer <- lstm_network_layers %>% 
+    layer_dense(class_label_size) %>%
+    ## Softmax activation
+    layer_activation("softmax")
+  
+  model <- keras_model(inputs=sequence, prediction_layer)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
 
 
 
