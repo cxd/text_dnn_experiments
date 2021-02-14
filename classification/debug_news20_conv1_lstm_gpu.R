@@ -45,21 +45,37 @@ indexedData <- vectorise_word_indices(newsDataset$data_set,
 
 dropout = 0.1
 
+embedding <- 128
+filter_list <- c(512,256,64)
+#filter_list <- c(512,256,128,64)
+kernel_size <- c(5, 3, 3, 3)
+lstm_units <- 64
+
+base_model_name <- "news_conv1d_lstm"
+base_save_dir <- "saved_models"
+
 model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen, 
-                               newsDataset$vocab$vocab_size, 
-                               length(newsDataset$class_labels), 
-                               embed_dim=128, 
-                               dropout=dropout,
-                               num_filters = 64, # same size as the embedding vocab.
-                               num_filters_second=64,
-                               lstm_units=64,
-                               kernel_size = 3,
-                               gpu_flag=cfg$hasGpu)
+                                               newsDataset$vocab$vocab_size, 
+                                               length(newsDataset$class_labels), 
+                                               embed_dim=embedding, 
+                                               dropout=dropout,
+                                               filter_list = filter_list,
+                                               lstm_units=lstm_units,
+                                               kernel_size = kernel_size,
+                                               gpu_flag=cfg$hasGpu,
+                                               bidirectional=TRUE)
 
 
 load_checkpoints <- TRUE
 
-checkpoint_file <- "checkpoints/news_memnet_lstm_conv1d_gpu.h5"
+suffix <- paste(c(embedding, filter_list, lstm_units), collapse="_")
+
+model_name <- paste(base_model_name, suffix, sep="_")
+checkpoint_file <- paste(model_name, "h5", sep=".")
+save_file <- paste(paste(model_name, suffix, sep="_"), "h5", sep=".")  
+
+save_file_path <- file.path(base_save_dir, save_file)
+
 if (load_checkpoints & file.exists(checkpoint_file)) {
   load_model_weights_hdf5(model1, checkpoint_file)
 }
@@ -95,7 +111,7 @@ val1_y <- as.matrix(val1_y)
 # 10 epochs is about 50 minutes.
 # 100 epochs is about 8 hours.
 # 
-numEpochs <- 50
+numEpochs <- 100
 
 
 require(lubridate)
@@ -124,7 +140,7 @@ history1 <- train_model(model1,
 
 load_model_weights_hdf5(model1, checkpoint_file)
 ## Save the model.
-model1 %>% save_model_weights_hdf5("saved_models/test_news_memnet_lstm_single_weights.h5")
+model1 %>% save_model_weights_hdf5(save_file_path)
 
 
 
@@ -147,16 +163,46 @@ test1_y <- testIndexedData$class_encoded
 test1_y <- do.call("rbind", test1_y)
 
 # the model is quite biased if it performs well on the traning data but not well on the validation
-evaluate_model(model1, train1_x, train1_y)
+# the model is quite biased if it performs well on the traning data but not well on the validation
+train_eval <- evaluate_model(model1, train1_x, train1_y)
 
-evaluate_model(model1, val1_x, val1_y)
+val_eval <- evaluate_model(model1, val1_x, val1_y)
 
 ## being biased it wont perform well in the test set either.
-evaluate_model(model1, test1_x, test1_y)
+test_eval <- evaluate_model(model1, test1_x, test1_y)
+
+temp <- data.frame(
+  model_name=model_name,
+  train_loss=train_eval["loss"],
+  train_accuracy=train_eval["accuracy"],
+  val_loss=val_eval["loss"],
+  val_accuracy=val_eval["accuracy"],
+  test_loss=test_eval["loss"],
+  test_accuracy=test_eval["accuracy"]
+)
+
+print(train_eval)
+print(val_eval)
+print(test_eval)
+
+test_pred <- predict(model1, test1_x)
+
+# convert the test prediction table into a table where the maximum is set to 1.
+test_M <- matrix(data=0,nrow=nrow(test_pred), ncol=ncol(test_pred))
+
+rows <- nrow(test_pred)
+for (i in 1:rows) {
+  idx <- which(test_pred[i,] == max(test_pred[i,]))
+  test_M[i,idx] <- 1
+}
+# TODO: map the newsgroup labels to the predictions and the original test data
+# draw confusability matrix.
 
 
 ## what were the class distributions in the training and validation data.
 labels1 <- newsData$newsgroup[idx]
+
+
 
 labels2 <- newsData$newsgroup[-idx]
 
@@ -166,6 +212,4 @@ labels1Count
 labels2Count <- data.frame(labels=labels2) %>% count(labels)
 labels2Count
 
-# the low accuracy could potentially be resolved using more data. 
-# or investigate the model architecture.
 

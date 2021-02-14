@@ -286,7 +286,8 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   sequence_encoder_m <- keras_model_sequential()
   sequence_encoder_m %>%
     layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
-    layer_dropout(rate = dropout) 
+    layer_spatial_dropout_1d(rate=dropout)
+    #layer_dropout(rate = dropout) 
   # output: (samples, maxlen, embedding_dim)
   
   
@@ -312,7 +313,8 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   cnn_network_layers <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list,
                                          kernel_size_list=kernel_size, 
                                          pooling_size=pooling_size, 
-                                         kernel_activation=kernel_activation)
+                                         kernel_activation=kernel_activation) %>%
+    layer_dropout(dropout)
   
   lstm_network_layers <- if (bidirectional) {
     cnn_network_layers %>% bidirectional(layer_lstm(units=lstm_units, 
@@ -474,6 +476,87 @@ define_dual_conv1d_lstm <- function(maxlen, vocab_size, class_label_size,
 }
 
 
+## Combine several conv2d operations and flatten outputs before feeding into a 
+## dense softmax layer for classification
+define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size, 
+                                                 embed_dim=64, 
+                                                 dropout=0.3, 
+                                                 optimizerName="rmsprop",
+                                                 kernel_size=c(3),
+                                                 pooling_size=2,
+                                                 filter_list=c(32,12),
+                                                 kernel_activation="relu",
+                                                 embedding_matrix=NULL,
+                                                 freeze_weights=FALSE) {
+  
+  # Placeholders
+  width <- maxlen
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+      layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+      layer_spatial_dropout_1d(rate=dropout) %>%
+      layer_reshape(c(width, embed_dim, 1))
+  
+  #layer_dropout(rate = dropout) 
+  # output: (samples, maxlen, embedding_dim)
+  # The layer is reshaped so as to enable a 2 dimensional set of convolutional layers to be constructed
+  # with their outputs concatenated size is channels last format
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+  
+  if (length(kernel_size) < length(filter_list)) {
+    kernel_size <- rep(kernel_size[[1]], length(filter_list))
+  }
+  
+  conv_layers <- c()
+  for (i in 1:length(filter_list)) {
+    filter <- filter_list[[i]]
+    kernel <- kernel_size[[i]]
+    layer <- sequence_encoded_m %>% 
+      layer_conv_2d(filter, kernel_size=kernel,
+                   padding="same",
+                   activation=kernel_activation,
+                   strides=1,
+                   input_shape = list(NULL, vocab_size, embed_dim, 1)) %>%
+      layer_max_pooling_2d(pool_size=pooling_size)
+    conv_layers <- c(conv_layers, layer)
+    
+  }
+  concat_conv <- layer_concatenate(conv_layers, trainable=TRUE)
+  wide_layers <- layer_flatten(concat_conv)
+  
+  # convert back to flattened output
+  prediction_layer <- wide_layers %>% 
+    layer_dense(class_label_size) %>%
+    ## Softmax activation
+    layer_activation("softmax")
+  
+  model <- keras_model(inputs=sequence, prediction_layer)
+  
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
+
 
 train_model <- function(model, 
                         train_vec, 
@@ -484,7 +567,8 @@ train_model <- function(model,
                         logdir="logs/single", 
                         checkpointPath="checkpoints/memnet_single.h5",
                         stop_mode="min",
-                        stop_patience=5) {
+                        stop_patience=5,
+                        shuffle=TRUE) {
   callbacks <- list(callback_model_checkpoint(checkpointPath, verbose=1, save_best_only=TRUE), 
                     callback_tensorboard(logdir),
                     callback_early_stopping(mode=stop_mode, patience=stop_patience, restore_best_weights=TRUE, verbose=1))
@@ -495,7 +579,8 @@ train_model <- function(model,
     batch_size = 32,
     epochs = numEpochs,
     validation_data = list(valid_vec, valid_target_vec),
-    callbacks = callbacks
+    callbacks = callbacks,
+    shuffle=shuffle
   )
 }
 
