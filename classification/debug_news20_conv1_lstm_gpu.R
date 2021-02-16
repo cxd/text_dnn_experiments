@@ -8,6 +8,37 @@ source("lib/memnet_singleinput_classifier.R")
 source("lib/read_glove.R")
 source("lib/read_classification_text.R")
 
+## The model is trained with batch normalization as the regularizer.
+## Note that using batch normalization is also a simpler process and assists in speeding up training.
+## It is also not advisable to combine batch normalisation with l1 or l2 loss.
+##
+## news_conv1d_lstm_128_512_256_64_64
+##
+## Train
+## loss   accuracy	
+## 0.01801863  0.9955724
+## Validate
+## loss  accuracy 
+## 0.6491640 0.8462220
+## Test
+## loss accuracy 
+## 1.259348  0.721440
+
+##
+## Interestingly using l2 orw l1 regularization causes the network to not learn as well.
+## news_conv1d_lstm_l2
+##
+## Train
+## loss  accuracy 
+## 0.1727145 0.9558507 
+## Validation
+## loss  accuracy 
+## 1.5173891 0.6083235 
+## Test
+## loss  accuracy 
+## 1.9589655 0.5166047 
+
+
 # Setup environment
 cfg <- init(getwd())
 
@@ -51,7 +82,11 @@ filter_list <- c(512,256,64)
 kernel_size <- c(5, 3, 3, 3)
 lstm_units <- 64
 
-base_model_name <- "news_conv1d_lstm"
+
+kernel_regularizer <- NULL
+batch_norm <- TRUE
+
+base_model_name <- "news_conv1d_lstm_batch_norm"
 base_save_dir <- "saved_models"
 
 model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen, 
@@ -62,11 +97,13 @@ model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen,
                                                filter_list = filter_list,
                                                lstm_units=lstm_units,
                                                kernel_size = kernel_size,
+                                               kernel_regularizer = kernel_regularizer,
                                                gpu_flag=cfg$hasGpu,
-                                               bidirectional=TRUE)
+                                               bidirectional=TRUE,
+                                               batch_norm=batch_norm)
 
 
-load_checkpoints <- TRUE
+load_checkpoints <- FALSE
 
 suffix <- paste(c(embedding, filter_list, lstm_units), collapse="_")
 

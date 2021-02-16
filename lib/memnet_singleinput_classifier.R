@@ -8,9 +8,11 @@ define_memnet_single <- function(maxlen, vocab_size, class_label_size, embed_dim
   # Encoders
   # Embed the input sequence into a sequence of vectors
   sequence_encoder_m <- keras_model_sequential()
+  
   sequence_encoder_m %>%
-    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
-    layer_dropout(rate = dropout)
+      layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+      layer_dropout(rate = dropout)
+ 
   # output: (samples, maxlen, embedding_dim)
   
   # Encode input sequence and questions (which are indices)
@@ -265,6 +267,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  embed_dim=64, 
                                                  dropout=0.3, 
                                                  optimizerName="rmsprop",
+                                                 kernel_regularizer=regularizer_l1(l=0.01),
                                                  kernel_size=c(3),
                                                  pooling_size=2,
                                                  filter_list=c(32,12),
@@ -277,7 +280,8 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  lstm_activation="tanh",
                                                  recurrent_activation="sigmoid",
                                                  recurrent_dropout=0,
-                                                 lstm_bias=TRUE) {
+                                                 lstm_bias=TRUE,
+                                                 batch_norm=TRUE) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -312,8 +316,10 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   # We attempt to reduce the dimensionality using a Convolutional network
   cnn_network_layers <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list,
                                          kernel_size_list=kernel_size, 
+                                         kernel_regularizer=kernel_regularizer,
                                          pooling_size=pooling_size, 
-                                         kernel_activation=kernel_activation) %>%
+                                         kernel_activation=kernel_activation,
+                                         batch_norm=batch_norm) %>%
     layer_dropout(dropout)
   
   lstm_network_layers <- if (bidirectional) {
@@ -346,24 +352,50 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
 
 build_cnn_layers <- function(last_layer, input_size, filter_list, 
                              kernel_size_list=3, 
+                             kernel_regularizer=regularizer_l1(l=0.01),
                              pooling_size=2, 
-                             kernel_activation="relu") {
+                             kernel_activation="relu",
+                             batch_norm=TRUE) {
   
   for (i in 1:length(filter_list)) {
     num_filters <- filter_list[[i]]
     kernel_size <- kernel_size_list[[i]]
     last_layer <- if (i == 1) {
+      # two conv layers then max pooling
       last_layer %>% 
-        layer_conv_1d(filters = num_filters, kernel_size = kernel_size,
+        layer_conv_1d(filters = num_filters, 
+                      kernel_size = kernel_size,
+                      activation=kernel_activation,
+                      kernel_regularizer=kernel_regularizer,
                       input_shape = list(NULL, input_size)) %>% 
-        layer_max_pooling_1d(pool_size = pooling_size) %>%
-        layer_batch_normalization() %>%
-        layer_activation(activation=kernel_activation)
+        layer_conv_1d(filters = num_filters, 
+                      activation=kernel_activation,
+                      kernel_size = kernel_size,
+                      kernel_regularizer=kernel_regularizer) %>% 
+        layer_max_pooling_1d(pool_size = pooling_size)
+        
+      if (batch_norm) {
+          last_layer <- last_layer %>%
+            layer_batch_normalization()
+        }
+        
+      
     } else {
-      last_layer %>% layer_conv_1d(filters = num_filters, kernel_size = kernel_size) %>%
-        layer_max_pooling_1d(pool_size = pooling_size) %>%
-        layer_batch_normalization() %>%
-        layer_activation(activation=kernel_activation)
+      last_layer %>% layer_conv_1d(filters = num_filters, 
+                                   activation=kernel_activation,
+                                   kernel_size = kernel_size,
+                                   kernel_regularizer=kernel_regularizer) %>%
+        layer_conv_1d(filters = num_filters, 
+                      activation=kernel_activation,
+                      kernel_size = kernel_size,
+                      kernel_regularizer=kernel_regularizer) %>%
+        layer_max_pooling_1d(pool_size = pooling_size)
+      
+      if (batch_norm) {
+        last_layer <- last_layer %>%
+          layer_batch_normalization()
+      }
+      
     }
     
   }
@@ -478,16 +510,21 @@ define_dual_conv1d_lstm <- function(maxlen, vocab_size, class_label_size,
 
 ## Combine several conv2d operations and flatten outputs before feeding into a 
 ## dense softmax layer for classification
+# Note can supply NULL for regularizer.
 define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size, 
                                                  embed_dim=64, 
                                                  dropout=0.3, 
                                                  optimizerName="rmsprop",
                                                  kernel_size=c(3),
+                                                 kernel_regularizer=regularizer_l1(l=0.01),
                                                  pooling_size=2,
                                                  filter_list=c(32,12),
                                                  kernel_activation="relu",
                                                  embedding_matrix=NULL,
-                                                 freeze_weights=FALSE) {
+                                                 freeze_weights=FALSE,
+                                       batch_norm=TRUE,
+                                       stacked_filters = c(),
+                                       stacked_kernel_size=c()) {
   
   # Placeholders
   width <- maxlen
@@ -530,16 +567,45 @@ define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size,
     kernel <- kernel_size[[i]]
     layer <- sequence_encoded_m %>% 
       layer_conv_2d(filter, kernel_size=kernel,
+                    kernel_regularizer=kernel_regularizer,
                    padding="same",
                    activation=kernel_activation,
                    strides=1,
                    input_shape = list(NULL, vocab_size, embed_dim, 1)) %>%
       layer_max_pooling_2d(pool_size=pooling_size)
+    if (batch_norm) {
+      layer <- layer %>%
+        layer_batch_normalization()
+    }
     conv_layers <- c(conv_layers, layer)
     
   }
   concat_conv <- layer_concatenate(conv_layers, trainable=TRUE)
-  wide_layers <- layer_flatten(concat_conv)
+  
+  # if the stacked depth is bigger than 0 we can add additional conv_2d layers 
+  # above the conv2d concatenated layers.
+  last_layer <- concat_conv
+  stacked_depth <- length(stacked_filters)
+  if (stacked_depth > 0) {
+    for (i in 1:stacked_depth) {
+      
+      last_layer <- last_layer %>% layer_conv_2d(stacked_filters[[i]],
+                                                 kernel_size=stacked_kernel_size[[i]],
+                                                 kernel_regularizer=kernel_regularizer,
+                                                 padding="same",
+                                                 activation=kernel_activation,
+                                                 strides=1) %>%
+        layer_max_pooling_2d(pool_size=pooling_size)
+      
+      if (batch_norm) {
+        last_layer <- last_layer %>%
+          layer_batch_normalization()
+      }
+      
+    }
+  }
+  
+  wide_layers <- layer_flatten(last_layer)
   
   # convert back to flattened output
   prediction_layer <- wide_layers %>% 
