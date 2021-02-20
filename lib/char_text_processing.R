@@ -1,4 +1,4 @@
-
+require(stringr)
 
 
 ### Convert text to unique characters.
@@ -148,4 +148,37 @@ to_one_hot_chars <- function(text, window=60) {
        data_x_dim=dim(x),
        data_y=y,
        data_y_dim=dim(y))
+}
+
+## Convert to text index sequences
+convert_to_char_index_sequences <- function(text = list(), max_width=1024) {
+  # we will truncate characters to an input dimension of s (as in the Character-level Convolutional Networks for Text classification).
+  s <- max_width
+  
+  char_indices <- char_index_set()
+  
+  # we need to padd the text but require the maximum length of the text
+  sizes <- sapply(text, nchar)
+  names(sizes) <- 1:length(sizes)
+  
+  
+  # text windows become padded sequences of 
+  # maxwidth x windowSize
+  
+  text_indices <- sapply(text, function(t) {
+    if (nchar(t) > s) {
+      t <- str_trunc(t, s)
+    }
+    pad_t <- str_pad(t, s, side="left", pad=" ")
+    sequence <- to_char_index_sequence(char_indices, pad_t)
+    sequence
+  })
+  
+  text_df <- t(as.data.frame(text_indices))
+  list(
+    num_indices=length(char_indices),
+    text=text,
+    sequence_list=text_indices,
+    sequence_df=text_df
+  )
 }
