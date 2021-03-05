@@ -267,6 +267,7 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  embed_dim=64, 
                                                  dropout=0.3, 
                                                  optimizerName="rmsprop",
+                                                 dense_units=c(),
                                                  kernel_regularizer=regularizer_l1(l=0.01),
                                                  kernel_size=c(3),
                                                  pooling_size=2,
@@ -281,7 +282,8 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                                  recurrent_activation="sigmoid",
                                                  recurrent_dropout=0,
                                                  lstm_bias=TRUE,
-                                                 batch_norm=TRUE) {
+                                                 batch_norm=TRUE,
+                                                 kernel_initializer=initializer_he_uniform()) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -289,7 +291,9 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   # Embed the input sequence into a sequence of vectors
   sequence_encoder_m <- keras_model_sequential()
   sequence_encoder_m %>%
-    layer_embedding(input_dim = vocab_size, output_dim = embed_dim) %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim,
+                    embeddings_initializer=kernel_initializer,
+                    trainable=TRUE) %>%
     layer_spatial_dropout_1d(rate=dropout)
     #layer_dropout(rate = dropout) 
   # output: (samples, maxlen, embedding_dim)
@@ -336,10 +340,106 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
                                       use_bias=lstm_bias)
   }
   # convert back to flattened output
-  prediction_layer <- lstm_network_layers %>% 
-    layer_dense(class_label_size) %>%
-    ## Softmax activation
-    layer_activation("softmax")
+  
+  prediction_layer <- lstm_network_layers
+  if (length(dense_units) > 0) {
+    for (i in 1:length(dense_units)) {
+      units <- dense_units[[i]]
+      activation <- if (i < length(dense_units)) {
+        kernel_activation
+      } else {
+        "softmax"
+      }
+      prediction_layer <- prediction_layer %>% layer_dense(units) %>%
+        layer_activation(activation)
+    }
+  }
+  
+  model <- keras_model(inputs=sequence, prediction_layer)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
+define_conv1d_dense <- function(maxlen, vocab_size, class_label_size, 
+                                                 embed_dim=64, 
+                                                 dropout=0.3, 
+                                                 optimizerName="rmsprop",
+                                                 dense_units=c(),
+                                                 kernel_regularizer=regularizer_l1(l=0.01),
+                                                 kernel_size=c(3),
+                                                 padding="valid",
+                                                 pooling_size=2,
+                                                 pool_flags=c(),
+                                                 filter_list=c(32,12),
+                                                 kernel_activation="relu",
+                                                 gpu_flag=FALSE,
+                                                 embedding_matrix=NULL,
+                                                 freeze_weights=FALSE,
+                                                 batch_norm=TRUE,
+                                                 kernel_initializer=initializer_he_uniform()) {
+  
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim,
+                    embeddings_initializer = kernel_initializer,
+                    trainable = TRUE) %>%
+    layer_spatial_dropout_1d(rate=dropout)
+  #layer_dropout(rate = dropout) 
+  # output: (samples, maxlen, embedding_dim)
+  
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+  
+  if (length(kernel_size) < length(filter_list)) {
+    kernel_size <- rep(kernel_size[[1]], length(filter_list))
+  }
+  # We attempt to reduce the dimensionality using a Convolutional network
+  cnn_network_layers <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list,
+                                         kernel_size_list=kernel_size, 
+                                         kernel_regularizer=kernel_regularizer,
+                                         pooling_size=pooling_size, 
+                                         pool_flags = pool_flags,
+                                         kernel_activation=kernel_activation,
+                                         batch_norm=batch_norm,
+                                         padding=padding)
+  
+  # convert back to flattened output
+  
+  prediction_layer <- cnn_network_layers %>% layer_flatten()
+  if (length(dense_units) > 0) {
+    for (i in 1:length(dense_units)) {
+      units <- dense_units[[i]]
+      if (i < length(dense_units)) {
+        prediction_layer <- prediction_layer %>% layer_dense(units,
+                                                             activation=kernel_activation) %>%
+          layer_dropout(dropout)
+      } else {
+        prediction_layer <- prediction_layer %>% layer_dense(units,
+                                                             activation="softmax")
+      }
+      
+    }
+  }
   
   model <- keras_model(inputs=sequence, prediction_layer)
   model %>% compile(
@@ -350,48 +450,159 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
 }
 
 
+define_conv1d_fcnn <- function(maxlen, vocab_size, class_label_size, 
+                                embed_dim=64, 
+                                dropout=0.3, 
+                                optimizerName="rmsprop",
+                                dense_units=c(),
+                                kernel_regularizer=regularizer_l1(l=0.01),
+                                kernel_size=c(3),
+                                padding="valid",
+                                pooling_size=2,
+                                pool_flags=c(),
+                                filter_list=c(32,12),
+                                kernel_activation="relu",
+                                gpu_flag=FALSE,
+                                embedding_matrix=NULL,
+                                freeze_weights=FALSE,
+                                batch_norm=TRUE,
+                                kernel_initializer=initializer_he_uniform()) {
+  
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim,
+                    embeddings_initializer = kernel_initializer,
+                    trainable = TRUE) %>%
+    layer_spatial_dropout_1d(rate=dropout)
+  #layer_dropout(rate = dropout) 
+  # output: (samples, maxlen, embedding_dim)
+  
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+  
+  if (length(kernel_size) < length(filter_list)) {
+    kernel_size <- rep(kernel_size[[1]], length(filter_list))
+  }
+  # We attempt to reduce the dimensionality using a Convolutional network
+  cnn_network_layers <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list,
+                                         kernel_size_list=kernel_size, 
+                                         kernel_regularizer=kernel_regularizer,
+                                         pooling_size=pooling_size, 
+                                         pool_flags = pool_flags,
+                                         kernel_activation=kernel_activation,
+                                         batch_norm=batch_norm,
+                                         padding=padding)
+  
+  # convert back to flattened output
+  
+  prediction_layer <- cnn_network_layers
+  
+  if (length(dense_units) > 0) {
+    for (i in 1:length(dense_units)) {
+      units <- dense_units[[i]]
+      if (i < length(dense_units)) {
+        prediction_layer <- prediction_layer %>% layer_conv_1d(filters=units,
+                                                              kernel_size=1,
+                                                              strides=1,
+                                                             activation=kernel_activation)
+        
+      } else {
+        prediction_layer <- prediction_layer %>% layer_conv_1d(filters=units,
+                                                               kernel_size=1,
+                                                               strides=1) %>%
+          layer_global_max_pooling_1d() %>%
+          layer_activation("softmax")
+        
+      }
+      
+    }
+  }
+  
+  model <- keras_model(inputs=sequence, prediction_layer)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
+
+
 build_cnn_layers <- function(last_layer, input_size, filter_list, 
                              kernel_size_list=3, 
                              kernel_regularizer=regularizer_l1(l=0.01),
                              pooling_size=2, 
+                             pool_flags=c(),
                              kernel_activation="relu",
-                             batch_norm=TRUE) {
+                             batch_norm=TRUE,
+                             kernel_initializer=initializer_he_uniform(),
+                             padding="valid") {
   
   for (i in 1:length(filter_list)) {
     num_filters <- filter_list[[i]]
     kernel_size <- kernel_size_list[[i]]
-    last_layer <- if (i == 1) {
+    if (i == 1) {
       # two conv layers then max pooling
-      last_layer %>% 
+      last_layer <- last_layer %>% 
         layer_conv_1d(filters = num_filters, 
                       kernel_size = kernel_size,
                       activation=kernel_activation,
                       kernel_regularizer=kernel_regularizer,
-                      input_shape = list(NULL, input_size)) %>% 
-        layer_conv_1d(filters = num_filters, 
-                      activation=kernel_activation,
-                      kernel_size = kernel_size,
-                      kernel_regularizer=kernel_regularizer) %>% 
-        layer_max_pooling_1d(pool_size = pooling_size)
+                      kernel_initializer=kernel_initializer,
+                      input_shape = list(NULL, input_size),
+                      padding=padding) 
+      
+      if (length(pool_flags) > 0 & pool_flags[[i]]) {
+        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      } else if (length(pool_flags) == 0) {
+        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      }
+     
         
-      if (batch_norm) {
+      if (length(pool_flags) > 0 & pool_flags[[i]] & batch_norm) {
           last_layer <- last_layer %>%
             layer_batch_normalization()
-        }
-        
+      } else if (batch_norm) {
+        last_layer <- last_layer %>%
+          layer_batch_normalization()
+      }
+         
       
     } else {
-      last_layer %>% layer_conv_1d(filters = num_filters, 
+      last_layer <- last_layer %>% layer_conv_1d(filters = num_filters, 
                                    activation=kernel_activation,
                                    kernel_size = kernel_size,
-                                   kernel_regularizer=kernel_regularizer) %>%
-        layer_conv_1d(filters = num_filters, 
-                      activation=kernel_activation,
-                      kernel_size = kernel_size,
-                      kernel_regularizer=kernel_regularizer) %>%
-        layer_max_pooling_1d(pool_size = pooling_size)
+                                   kernel_initializer=kernel_initializer,
+                                   kernel_regularizer=kernel_regularizer,
+                                   padding=padding)
       
-      if (batch_norm) {
+      if (length(pool_flags) > 0 & pool_flags[[i]]) {
+        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      } else if (length(pool_flags) == 0) {
+        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      }
+      
+      if (length(pool_flags) > 0 & pool_flags[[i]] & batch_norm) {
+        last_layer <- last_layer %>%
+          layer_batch_normalization()
+      } else if (batch_norm) {
         last_layer <- last_layer %>%
           layer_batch_normalization()
       }
@@ -430,7 +641,8 @@ define_dual_conv1d_lstm <- function(maxlen, vocab_size, class_label_size,
                                                  lstm_activation="tanh",
                                                  recurrent_activation="sigmoid",
                                                  recurrent_dropout=0,
-                                                 lstm_bias=TRUE) {
+                                                 lstm_bias=TRUE,
+                                    kernel_initializer=initializer_he_uniform()) {
   
   # Placeholders
   sequence <- layer_input(shape = c(maxlen))
@@ -469,12 +681,14 @@ define_dual_conv1d_lstm <- function(maxlen, vocab_size, class_label_size,
   cnn_network_layers1 <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list1,
                                          kernel_size_list=kernel_size1, 
                                          pooling_size=pooling_size, 
-                                         kernel_activation=kernel_activation)
+                                         kernel_activation=kernel_activation,
+                                         kernel_initializer=kernel_initializer)
   
   cnn_network_layers2 <- build_cnn_layers(sequence_encoded_m, embed_dim, filter_list2,
                                           kernel_size_list=kernel_size2, 
                                          pooling_size=pooling_size, 
-                                         kernel_activation=kernel_activation)
+                                         kernel_activation=kernel_activation,
+                                         kernel_initializer=kernel_initializer)
   
   ## we need to concatenate the outputs of the 2 layers togethor.
   cnn_network_layers <- layer_concatenate(c(cnn_network_layers1, cnn_network_layers2), axis=-1)
@@ -524,7 +738,8 @@ define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size,
                                                  freeze_weights=FALSE,
                                        batch_norm=TRUE,
                                        stacked_filters = c(),
-                                       stacked_kernel_size=c()) {
+                                       stacked_kernel_size=c(),
+                                       kernel_initializer=initializer_he_uniform()) {
   
   # Placeholders
   width <- maxlen
@@ -570,6 +785,7 @@ define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size,
                     kernel_regularizer=kernel_regularizer,
                    padding="same",
                    activation=kernel_activation,
+                   kernel_initializer=kernel_initializer,
                    strides=1,
                    input_shape = list(NULL, vocab_size, embed_dim, 1)) %>%
       layer_max_pooling_2d(pool_size=pooling_size)
@@ -592,6 +808,7 @@ define_shared_input_conv2d <- function(maxlen, vocab_size, class_label_size,
       last_layer <- last_layer %>% layer_conv_2d(stacked_filters[[i]],
                                                  kernel_size=stacked_kernel_size[[i]],
                                                  kernel_regularizer=kernel_regularizer,
+                                                 kernel_initializer=kernel_initializer,
                                                  padding="same",
                                                  activation=kernel_activation,
                                                  strides=1) %>%
@@ -636,8 +853,12 @@ train_model <- function(model,
                         stop_patience=5,
                         shuffle=TRUE) {
   callbacks <- list(callback_model_checkpoint(checkpointPath, verbose=1, save_best_only=TRUE), 
-                    callback_tensorboard(logdir),
-                    callback_early_stopping(mode=stop_mode, patience=stop_patience, restore_best_weights=TRUE, verbose=1))
+                    callback_tensorboard(logdir))
+  
+  if (stop_patience > 0) {
+    callbacks <- c(callbacks, list(callback_early_stopping(mode=stop_mode, patience=stop_patience, restore_best_weights=TRUE, verbose=1)))
+  }
+  
   
   model %>% fit(
     x = train_vec,

@@ -43,61 +43,49 @@ text <- newsDataset$data_set$text
 # this is the same as word indices but does not require a word vocabulary only a character level vocabulary.
 # similarly the max width of the character feature space can be increased if required depending on resources.
 # smaller widths are suitable for short utterances which is task specific such as reviews, or chat classification, or sentiment analysis.
-max_char_width <- 4096
+max_char_width <- 1024
 char_data <- convert_to_char_index_sequences(text, max_width=max_char_width)
 
 # now we can prepare the same type of architecture and perform the data split for training.
 
 
-dropout = 0.5
+dropout = 0.1
 
-embedding <- 128
-#embedding <- char_data$num_indices
+embedding <- 512
 # article suggests increasing filters
-filter_list <- c(512, 256, 128, 128)
-pool_flags <- c(TRUE, TRUE, FALSE, FALSE, FALSE, TRUE)
+filter_list <- c(64, 64, 128, 256, 512)
 #filter_list <- c(512,256,128,64)
-kernel_size <- c(7, 7, 3, 3, 3, 3)
-dense_units=c(1024, 512, length(newsDataset$class_labels))
-initializer <- initializer_random_normal(mean=0, stddev=0.05)
+kernel_size <- c(3, 3, 3, 3)
+lstm_units <- 64
+dense_units=c(256, 256, length(newsDataset$class_labels))
+
 kernel_regularizer <- NULL
-batch_norm <- FALSE
-pool_size <- 3
-#optimizer <- optimizer_adam(lr=0.001)
-optimizer <- optimizer_rmsprop(lr=0.001)
-# early stopping is very useful
-# as observed the trajectory of validation loss seems to continue to increase if the network fails to learn or starts to overlearn.
-# early stopping can detect this and load the last best weights.
-patience <- 10
-base_model_name <- "news_char_conv1d"
+batch_norm <- TRUE
+
+base_model_name <- "news_char_conv1d_lstm_batch_norm"
 base_save_dir <- "saved_models"
 
 # We will first try the 1 dimensional CNN LSTM on the character level.
 # However the article suggests increasing the number of filters instead of decreasing them (opposite to pyramid)
-# define_conv1d_dense
-
-# try the fully connected fcnn
-model1 <- define_conv1d_fcnn(max_char_width, 
-                              char_data$num_indices, 
-                              length(newsDataset$class_labels), 
-                              optimizerName=optimizer,
-                              embed_dim=embedding, 
-                              dropout=dropout,
-                              pooling_size=pool_size,
-                              pool_flags=pool_flags,
-                              filter_list = filter_list,
-                              kernel_size = kernel_size,
-                              kernel_regularizer = kernel_regularizer,
-                              kernel_initializer = initializer,
-                              gpu_flag=cfg$hasGpu,
-                              batch_norm=batch_norm,
-                              dense_units=dense_units)
+model1 <- define_memnet_lstm_conv1d_single_gpu(max_char_width, 
+                                               char_data$num_indices, 
+                                               length(newsDataset$class_labels), 
+                                               embed_dim=embedding, 
+                                               dropout=dropout,
+                                               filter_list = filter_list,
+                                               lstm_units=lstm_units,
+                                               kernel_size = kernel_size,
+                                               kernel_regularizer = kernel_regularizer,
+                                               gpu_flag=cfg$hasGpu,
+                                               bidirectional=TRUE,
+                                               batch_norm=batch_norm,
+                                               dense_units=dense_units)
 
 
 
 load_checkpoints <- FALSE
 
-suffix <- paste(c(embedding, filter_list), collapse="_")
+suffix <- paste(c(embedding, filter_list, lstm_units), collapse="_")
 
 model_name <- paste(base_model_name, suffix, sep="_")
 checkpoint_file <- paste(model_name, "h5", sep=".")
@@ -167,7 +155,6 @@ history1 <- train_model(model1,
                         val1_y,
                         numEpochs=numEpochs,
                         logdir=logdir, 
-                        stop_patience=patience,
                         checkpointPath=checkpoint_file)
 
 

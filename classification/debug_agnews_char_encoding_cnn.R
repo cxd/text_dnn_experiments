@@ -7,6 +7,7 @@ source("lib/prepare_squad_data.R")
 source("lib/read_glove.R")
 source("lib/char_text_processing.R")
 source("lib/read_news20.R")
+source("lib/read_agnews_data.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_classification_text.R")
 
@@ -15,8 +16,8 @@ source("lib/read_classification_text.R")
 cfg <- init(getwd())
 
 
-newsData <- getPath(type="train", dev=FALSE) %>% 
-  read_news_file()
+newsData <- get_path(type="train") %>% 
+  read_ag_file()
 
 ## Get the vocab and the word vector list.
 ## also encode the classes.
@@ -35,7 +36,7 @@ newsData <- getPath(type="train", dev=FALSE) %>%
 ## text - the original text
 ## word_vector - the list of words for the sentence
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
-newsDataset <- news_create_data_set(newsData)
+newsDataset <- create_ag_dataset(newsData)
 
 text <- newsDataset$data_set$text
 
@@ -69,7 +70,7 @@ optimizer <- optimizer_rmsprop(lr=0.001)
 # as observed the trajectory of validation loss seems to continue to increase if the network fails to learn or starts to overlearn.
 # early stopping can detect this and load the last best weights.
 patience <- 10
-base_model_name <- "news_char_conv1d"
+base_model_name <- "ag_news_char_conv1d"
 base_save_dir <- "saved_models"
 
 # We will first try the 1 dimensional CNN LSTM on the character level.
@@ -77,21 +78,21 @@ base_save_dir <- "saved_models"
 # define_conv1d_dense
 
 # try the fully connected fcnn
-model1 <- define_conv1d_fcnn(max_char_width, 
-                              char_data$num_indices, 
-                              length(newsDataset$class_labels), 
-                              optimizerName=optimizer,
-                              embed_dim=embedding, 
-                              dropout=dropout,
-                              pooling_size=pool_size,
-                              pool_flags=pool_flags,
-                              filter_list = filter_list,
-                              kernel_size = kernel_size,
-                              kernel_regularizer = kernel_regularizer,
-                              kernel_initializer = initializer,
-                              gpu_flag=cfg$hasGpu,
-                              batch_norm=batch_norm,
-                              dense_units=dense_units)
+model1 <- define_conv1d_dense(max_char_width, 
+                             char_data$num_indices, 
+                             length(newsDataset$class_labels), 
+                             optimizerName=optimizer,
+                             embed_dim=embedding, 
+                             dropout=dropout,
+                             pooling_size=pool_size,
+                             pool_flags=pool_flags,
+                             filter_list = filter_list,
+                             kernel_size = kernel_size,
+                             kernel_regularizer = kernel_regularizer,
+                             kernel_initializer = initializer,
+                             gpu_flag=cfg$hasGpu,
+                             batch_norm=batch_norm,
+                             dense_units=dense_units)
 
 
 
@@ -180,10 +181,10 @@ model1 %>% save_model_weights_hdf5(save_file_path)
 
 
 
-testNewsData <- getPath(type="test", dev=FALSE) %>% 
-  read_news_file()
+testNewsData <- get_path(type="test") %>% 
+  read_ag_file()
 
-testNewsDataset <- news_create_data_set(testNewsData)
+testNewsDataset <- create_ag_dataset(testNewsData)
 
 
 test_text <- testNewsDataset$data_set$text

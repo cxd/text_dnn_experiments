@@ -77,10 +77,11 @@ indexedData <- vectorise_word_indices(newsDataset$data_set,
 dropout = 0.1
 
 embedding <- 128
-filter_list <- c(512,256,64)
+#filter_list <- c(512,256,64)
 #filter_list <- c(512,256,128,64)
 kernel_size <- c(5, 3, 3, 3)
 lstm_units <- 64
+dense_units=c(512, 512, length(newsDataset$class_labels))
 
 
 kernel_regularizer <- NULL
@@ -100,7 +101,8 @@ model1 <- define_memnet_lstm_conv1d_single_gpu(newsDataset$vocab$maxlen,
                                                kernel_regularizer = kernel_regularizer,
                                                gpu_flag=cfg$hasGpu,
                                                bidirectional=TRUE,
-                                               batch_norm=batch_norm)
+                                               batch_norm=batch_norm,
+                                               dense_units=dense_units)
 
 
 load_checkpoints <- FALSE

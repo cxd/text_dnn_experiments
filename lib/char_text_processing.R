@@ -169,7 +169,12 @@ convert_to_char_index_sequences <- function(text = list(), max_width=1024) {
     if (nchar(t) > s) {
       t <- str_trunc(t, s)
     }
+    # in the case the text is shorter than s it is left padded.
     pad_t <- str_pad(t, s, side="left", pad=" ")
+    # importantly based on the article "Text Understanding from Scratch"
+    # the text sequence is quantized in backward order. 
+    # The latest reading on characters is placed near the beginning of the output.
+    pad_t <- pad_t %>% rev()
     sequence <- to_char_index_sequence(char_indices, pad_t)
     sequence
   })
