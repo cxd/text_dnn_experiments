@@ -363,6 +363,109 @@ define_memnet_lstm_conv1d_single_gpu <- function(maxlen, vocab_size, class_label
   )
 }
 
+# define an lstm layer which is combined and multiplied with an attention layer
+# and then fed into the dense output layer.
+define_lstm_attention <- function(maxlen, vocab_size, class_label_size, 
+                                                 embed_dim=64, 
+                                                 dropout=0.3, 
+                                                 optimizerName="rmsprop",
+                                                 dense_units=c(),
+                                                 lstm_units=12,
+                                                 kernel_activation="relu",
+                                                 embedding_matrix=NULL,
+                                                 freeze_weights=FALSE,
+                                                 bidirectional=FALSE,
+                                                 lstm_activation="tanh",
+                                                 recurrent_activation="sigmoid",
+                                                 recurrent_dropout=0,
+                                                 lstm_bias=TRUE,
+                                                 batch_norm=TRUE,
+                                                 kernel_initializer=initializer_he_uniform()) {
+  
+  # Placeholders
+  sequence <- layer_input(shape = c(maxlen))
+  # Encoders
+  # Embed the input sequence into a sequence of vectors
+  sequence_encoder_m <- keras_model_sequential()
+  sequence_encoder_m %>%
+    layer_embedding(input_dim = vocab_size, output_dim = embed_dim,
+                    embeddings_initializer=kernel_initializer,
+                    trainable=TRUE) %>%
+    layer_spatial_dropout_1d(rate=dropout)
+  #layer_dropout(rate = dropout) 
+  # output: (samples, maxlen, embedding_dim)
+  
+  
+  # Encode input sequence and questions (which are indices)
+  # to sequences of dense vectors
+  sequence_encoded_m <- sequence_encoder_m(sequence)
+  
+  
+  ## Set the embedding for the input sequence.
+  if (!is.null(embedding_matrix) & freeze_weights) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix)) %>%
+      freeze_weights()
+  } else if (!is.null(embedding_matrix)) {
+    get_layer(sequence_encoder_m, index=1) %>%
+      set_weights(list(embedding_matrix))
+  }
+  
+ lstm_network_layers <- if (bidirectional) {
+   sequence_encoded_m %>% bidirectional(layer_lstm(units=lstm_units, 
+                                                    activation=lstm_activation,
+                                                    recurrent_activation=recurrent_activation,
+                                                    recurrent_dropout=recurrent_dropout,
+                                                    use_bias=lstm_bias,
+                                                   return_sequences=TRUE))
+  } else {
+    sequence_encoded_m %>% layer_lstm(units=lstm_units,
+                                      activation=lstm_activation,
+                                      recurrent_activation=recurrent_activation,
+                                      recurrent_dropout=recurrent_dropout,
+                                      use_bias=lstm_bias,
+                                      return_sequences=TRUE)
+  }
+ 
+ # now we need to add an attention layer.
+ e <- lstm_network_layers %>% layer_dense(1, activation="tanh")
+ e <- e %>% layer_reshape(c(-1))
+ alpha <- e %>% layer_activation("softmax")
+ c <- alpha %>% layer_repeat_vector(lstm_units)
+ c <- c %>% layer_permute(c(2,1))
+ c <- layer_multiply(c(lstm_network_layers, c))
+ c <- c %>% layer_lambda(function(xin) {
+   k_sum(xin, axis=2)
+ }, output_shape=c(lstm_units, NULL))
+ 
+ attention_layer <- c
+ 
+  
+ 
+ # convert back to flattened output
+  
+  prediction_layer <- attention_layer %>% layer_flatten()
+  if (length(dense_units) > 0) {
+    for (i in 1:length(dense_units)) {
+      units <- dense_units[[i]]
+      activation <- if (i < length(dense_units)) {
+        kernel_activation
+      } else {
+        "softmax"
+      }
+      prediction_layer <- prediction_layer %>% layer_dense(units) %>%
+        layer_activation(activation)
+    }
+  }
+  
+  model <- keras_model(inputs=sequence, prediction_layer)
+  model %>% compile(
+    optimizer=optimizerName,
+    loss="categorical_crossentropy",
+    metrics=c("accuracy")
+  )
+}
+
 define_conv1d_dense <- function(maxlen, vocab_size, class_label_size, 
                                                  embed_dim=64, 
                                                  dropout=0.3, 
@@ -867,7 +970,7 @@ train_model <- function(model,
                         stop_mode="min",
                         stop_patience=5,
                         shuffle=TRUE) {
-  callbacks <- list(callback_model_checkpoint(checkpointPath, verbose=1, save_best_only=TRUE), 
+  callbacks <- list(callback_model_checkpoint(checkpointPath, verbose=1, save_best_only=TRUE, save_weights_only=TRUE), 
                     callback_tensorboard(logdir))
   
   if (stop_patience > 0) {
