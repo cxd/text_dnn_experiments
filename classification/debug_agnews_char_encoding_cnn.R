@@ -11,10 +11,27 @@ source("lib/read_agnews_data.R")
 source("lib/memnet_singleinput_classifier.R")
 source("lib/read_classification_text.R")
 
+# without batch norm.
+# loss  accuracy 
+# 0.6018506 0.7868810 
+# loss  accuracy 
+# 0.6192338 0.7834722 
+# loss  accuracy 
+# 0.6406606 0.7778947
+
+# with batch norm.
+# loss  accuracy 
+# 0.3706988 0.8910714 
+# loss  accuracy 
+# 0.4634718 0.8710555 
+# loss  accuracy 
+# 0.4581098 0.8669737 
+
 
 # Setup environment
 cfg <- init(getwd())
 
+print("loading data")
 
 newsData <- get_path(type="train") %>% 
   read_ag_file()
@@ -38,31 +55,45 @@ newsData <- get_path(type="train") %>%
 ## class_encoded - a one hot encoded class label, where 1 maps to the current class and 0 the others.
 newsDataset <- create_ag_dataset(newsData)
 
+print("Num classes")
+print(length(newsDataset$class_labels))
+
+print("building char data")
+
 text <- newsDataset$data_set$text
 
 # use method to extract character sequences of max characters 1024
 # this is the same as word indices but does not require a word vocabulary only a character level vocabulary.
 # similarly the max width of the character feature space can be increased if required depending on resources.
 # smaller widths are suitable for short utterances which is task specific such as reviews, or chat classification, or sentiment analysis.
-max_char_width <- 4096
-char_data <- convert_to_char_index_sequences(text, max_width=max_char_width)
+max_char_width <- 1024
+
+char_data <- NULL
+rds_path <- file.path("data", "crepe", "ag_char_data.rds")
+if (file.exists(rds_path)) {
+  print("read from RDS")
+  char_data <- readRDS(rds_path)
+} else {
+  char_data <- convert_to_char_index_sequences(text, max_width=max_char_width)
+  saveRDS(char_data, rds_path)
+}
 
 # now we can prepare the same type of architecture and perform the data split for training.
-
+print("completed loading data")
 
 dropout = 0.5
 
 embedding <- 128
 #embedding <- char_data$num_indices
 # article suggests increasing filters
-filter_list <- c(512, 256, 128, 128)
+filter_list <- c(256, 256, 256, 256, 256, 256)
 pool_flags <- c(TRUE, TRUE, FALSE, FALSE, FALSE, TRUE)
 #filter_list <- c(512,256,128,64)
 kernel_size <- c(7, 7, 3, 3, 3, 3)
-dense_units=c(1024, 512, length(newsDataset$class_labels))
+dense_units=c(1024, 1024, length(newsDataset$class_labels))
 initializer <- initializer_random_normal(mean=0, stddev=0.05)
 kernel_regularizer <- NULL
-batch_norm <- FALSE
+batch_norm <- TRUE
 pool_size <- 3
 #optimizer <- optimizer_adam(lr=0.001)
 optimizer <- optimizer_rmsprop(lr=0.001)
@@ -70,7 +101,7 @@ optimizer <- optimizer_rmsprop(lr=0.001)
 # as observed the trajectory of validation loss seems to continue to increase if the network fails to learn or starts to overlearn.
 # early stopping can detect this and load the last best weights.
 patience <- 10
-base_model_name <- "ag_news_char_conv1d"
+base_model_name <- "ag_news_char_conv1d_batchnorm"
 base_save_dir <- "saved_models"
 
 # We will first try the 1 dimensional CNN LSTM on the character level.

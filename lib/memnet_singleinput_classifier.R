@@ -569,16 +569,23 @@ build_cnn_layers <- function(last_layer, input_size, filter_list,
                       input_shape = list(NULL, input_size),
                       padding=padding) 
       
-      if (length(pool_flags) > 0 & pool_flags[[i]]) {
-        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      if (length(pool_flags) > 0) {
+        if (pool_flags[[i]]) {
+          last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+        } 
       } else if (length(pool_flags) == 0) {
         last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
       }
      
         
-      if (length(pool_flags) > 0 & pool_flags[[i]] & batch_norm) {
+      if (length(pool_flags) > 0) { 
+        if (pool_flags[[i]] & batch_norm) {
           last_layer <- last_layer %>%
             layer_batch_normalization()
+        } else if (batch_norm) {
+          last_layer <- last_layer %>%
+            layer_batch_normalization()
+        }
       } else if (batch_norm) {
         last_layer <- last_layer %>%
           layer_batch_normalization()
@@ -593,15 +600,23 @@ build_cnn_layers <- function(last_layer, input_size, filter_list,
                                    kernel_regularizer=kernel_regularizer,
                                    padding=padding)
       
-      if (length(pool_flags) > 0 & pool_flags[[i]]) {
-        last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+      if (length(pool_flags) > 0) {
+        if (pool_flags[[i]]) {
+          last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
+        } 
       } else if (length(pool_flags) == 0) {
         last_layer <- last_layer %>% layer_max_pooling_1d(pool_size = pooling_size)
       }
       
-      if (length(pool_flags) > 0 & pool_flags[[i]] & batch_norm) {
-        last_layer <- last_layer %>%
-          layer_batch_normalization()
+      
+      if (length(pool_flags) > 0) { 
+        if (pool_flags[[i]] & batch_norm) {
+          last_layer <- last_layer %>%
+            layer_batch_normalization()
+        } else if (batch_norm) {
+          last_layer <- last_layer %>%
+            layer_batch_normalization()
+        }
       } else if (batch_norm) {
         last_layer <- last_layer %>%
           layer_batch_normalization()

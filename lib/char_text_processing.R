@@ -10,7 +10,7 @@ to_unique_chars <- function(textset) {
 }
 
 
-set_of_chars <- function() c("\n"," ","_","-",",",";",":","!","?",".","'","\"",
+set_of_chars <- function() c("\n"," ","_","-",",",";",":","!","@", "?",".","'","\"",
                              "(",")","[","]","{","}","*","/","&","#","%","`",
                              "+","<","=",">","|","~","$","0","1","2","3","4",
                              "5","6","7","8","9","a","A","b","B","c","C","d",
@@ -181,7 +181,9 @@ convert_to_char_index_sequences <- function(text = list(), max_width=1024) {
   
   text_df <- t(as.data.frame(text_indices))
   list(
-    num_indices=length(char_indices),
+    # the layer embedding is 0 based, in R indices start with 1.
+    # in tensorflow the indices will map from 0 onwards.
+    num_indices=length(char_indices) + 1,
     text=text,
     sequence_list=text_indices,
     sequence_df=text_df
